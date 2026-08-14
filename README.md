@@ -5,16 +5,41 @@ Text messen, lektorieren — und Zeichen für Zeichen tippen, im Rhythmus einer 
 Läuft auf deinem Rechner. Kein Konto, keine Anmeldung, keine Abhängigkeiten:
 `npm install` lädt nichts, weil es nichts zu laden gibt.
 
-## Installieren
+## Einrichten
 
-Ein Befehl im Terminal. Braucht [Node 20 oder neuer](https://nodejs.org):
+Ein Befehl. Er holt den Quelltext, prüft alles Nötige, startet Handschrift und
+sagt am Ende, was noch von Hand fehlt. Braucht [Node 20 oder neuer](https://nodejs.org):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jaidigrotemeyer-boop/handschrift/main/scripts/einrichten.sh | bash
+```
+
+```
+  ✓ Node v22.22.2
+  ✓ Quelltext da (keine Pakete nötig)
+  ✓ 67 von 67 in Ordnung
+  – kein Ollama gefunden
+  ✓ cliclick da — tippt flott
+
+  Fertig. Handschrift startet auf http://localhost:3018
+
+  Das fehlt noch:
+    • Fürs Umschreiben eins von beidem: Ollama installieren (ollama.com)
+      oder einen Gratis-Schlüssel in den Einstellungen eintragen
+```
+
+Nochmal ausführen frischt eine bestehende Installation auf, statt sie doppelt
+anzulegen. Läuft auf macOS und Linux.
+
+### Als richtige Mac-App
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jaidigrotemeyer-boop/handschrift/main/scripts/install.sh | bash
 ```
 
 Danach liegt **Handschrift.app** im Programme-Ordner und startet per Doppelklick.
-Ohne Mac — oder wenn du lieber selbst nachschaust, was läuft:
+
+### Von Hand
 
 ```bash
 git clone https://github.com/jaidigrotemeyer-boop/handschrift.git ~/handschrift
@@ -22,6 +47,9 @@ cd ~/handschrift && npm start
 ```
 
 Dann `http://localhost:3018` öffnen. Nur dein Rechner kommt dran.
+
+Alle drei Wege setzen voraus, dass das Repo auf **öffentlich** steht — bei
+privat antwortet GitHub mit 404, als gäbe es das Repo nicht.
 
 ## Messen
 
