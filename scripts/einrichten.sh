@@ -66,18 +66,31 @@ else
 fi
 
 # ── Gehirn fürs Umschreiben ──────────────────────────────────────────
+# Welches Modell auf diesen Rechner passt, hängt am Arbeitsspeicher. Ein zu
+# großes lädt nicht, sondern tauscht — und braucht dann Minuten je Absatz.
+RAM_GB=$(node -p 'Math.round(require("os").totalmem()/1e9)')
+if [ "$RAM_GB" -le 9 ]; then
+  MODELL='llama3.2:3b'
+elif [ "$RAM_GB" -le 17 ]; then
+  MODELL='qwen2.5:7b'
+else
+  MODELL='qwen2.5:14b'
+fi
+printf '  ✓ %s GB Arbeitsspeicher — passendes Modell: %s\n' "$RAM_GB" "$MODELL"
+
 if curl -s -m 2 -o /dev/null "http://127.0.0.1:11434/api/tags"; then
-  printf '  ✓ Ollama läuft — Umschreiben geht ohne Schlüssel\n'
-  if ! curl -s -m 2 "http://127.0.0.1:11434/api/tags" | grep -q '"name"'; then
-    gelb '  ! Ollama hat noch kein Modell'
-    offen+=("Ein Modell holen:  ollama pull llama3.2:3b")
+  if curl -s -m 2 "http://127.0.0.1:11434/api/tags" | grep -q '"name"'; then
+    printf '  ✓ Ollama läuft mit Modell — Umschreiben geht ohne Schlüssel\n'
+  else
+    gelb '  ! Ollama läuft, hat aber kein Modell'
+    offen+=("Modell holen:  ollama pull $MODELL")
   fi
 elif command -v ollama >/dev/null 2>&1; then
   gelb '  ! Ollama ist da, läuft aber nicht'
-  offen+=("Ollama starten:  ollama serve   (danach: ollama pull llama3.2:3b)")
+  offen+=("Ollama starten:  ollama serve   (danach: ollama pull $MODELL)")
 else
   gelb '  – kein Ollama gefunden'
-  offen+=("Fürs Umschreiben eins von beidem: Ollama installieren (ollama.com) oder einen Gratis-Schlüssel in den Einstellungen eintragen (aistudio.google.com/apikey)")
+  offen+=("Fürs Umschreiben eins von beidem: Ollama von ollama.com installieren, dann 'ollama pull $MODELL' — oder einen Gratis-Schlüssel in den Einstellungen eintragen (aistudio.google.com/apikey)")
 fi
 
 # ── Tippen ───────────────────────────────────────────────────────────

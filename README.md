@@ -155,14 +155,31 @@ kein Netz, keine Kosten:
 
 ```bash
 ollama serve
-ollama pull llama3.2:3b     # klein und schnell, reicht absatzweise
-ollama pull qwen2.5:7b      # merklich besseres Deutsch, wenn der Rechner mag
+ollama pull llama3.2:3b
 ```
 
-Sind mehrere Modelle da, nimmt Handschrift das größte — beim Lektorieren ist
-größer spürbar besser. Einbettungs- und Bildmodelle werden übersprungen, die
-können keinen Text schreiben. In den Einstellungen lässt sich ein bestimmtes
-Modell festlegen.
+Welches Modell passt, hängt am Arbeitsspeicher — und zwar hart. Ein zu großes
+Modell lädt nicht, sondern beginnt zu tauschen, und dann dauert ein einzelner
+Absatz Minuten:
+
+| Arbeitsspeicher | Modell | Belegt |
+|---|---|---|
+| **8 GB** | `llama3.2:3b` | ~2,0 GB |
+| 16 GB | `qwen2.5:7b` | ~4,7 GB |
+| 32 GB und mehr | `qwen2.5:14b` | ~9,0 GB |
+
+Handschrift nimmt von selbst das größte Modell, das **noch in den Speicher
+passt** — nicht das größte überhaupt. Gerechnet wird mit 55 % des
+Arbeitsspeichers; der Rest gehört dem System, dem Browser und Handschrift
+selbst. Auf einem 8-GB-Mac bleiben so gut vier Gigabyte.
+
+Einbettungs- und Bildmodelle werden übersprungen, die können keinen Text
+schreiben. In den Einstellungen lässt sich ein bestimmtes Modell festlegen,
+wenn die Automatik danebenliegt.
+
+Auf 8 GB ist `llama3.2:3b` klein — genau dafür geht das Umschreiben absatzweise.
+Ein einzelner Absatz überfordert es nicht, und misslingt einer, bleibt er
+stehen, während die übrigen besser werden.
 
 Sonst genügt ein Gratis-Schlüssel, einer reicht. Er liegt in
 `data/einstellungen.json` auf deinem Rechner:
@@ -237,5 +254,5 @@ node pruefe.mjs
 ```
 
 Misst flachen gegen lebendigen Text, prüft den Rhythmus, die Dauer-Eingaben,
-die Grenzen, den Stopp, die Absatz-Zerlegung, alle Tore und die Modellwahl —
-70 Prüfungen, ohne dass eine Taste angeschlagen oder ein Modell angerufen wird.
+die Grenzen, den Stopp, die Absatz-Zerlegung, alle Tore und die Modellwahl
+nach Arbeitsspeicher — 75 Prüfungen, ohne dass eine Taste angeschlagen oder ein Modell angerufen wird.

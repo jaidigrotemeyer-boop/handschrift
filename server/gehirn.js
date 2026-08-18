@@ -9,6 +9,7 @@
 // oft dieselben Floskeln in neuer Reihenfolge. Darum zählt hier nicht die
 // Absicht, sondern das Ergebnis — und wenn es nicht besser ist, wird noch
 // einmal gefragt, diesmal mit dem, was übrig geblieben ist.
+import os from 'node:os'
 import { lesen } from './config.js'
 import { messen } from './messen.js'
 import { bloecke, zusammensetzen, lektorierbar } from './bloecke.js'
@@ -63,13 +64,43 @@ async function gemini(nachrichten, signal) {
  * Modelle ohne Zahl landen dazwischen; reine Einbettungs- und Bildmodelle
  * fliegen raus, die können keinen Text schreiben.
  */
-export function bestesModell(namen) {
-  const taugt = namen.filter((n) => !/embed|bge|clip|llava|moondream|vision|whisper/i.test(n))
-  const groesse = (n) => {
-    const t = n.match(/(\d+(?:\.\d+)?)\s*b\b/i)
-    return t ? Number(t[1]) : 4
-  }
-  return taugt.sort((a, b) => groesse(b) - groesse(a))[0] || namen[0] || null
+/**
+ * Wie viel Arbeitsspeicher darf ein Modell belegen? Nicht alles: das
+ * Betriebssystem, der Browser und Handschrift selbst brauchen auch etwas.
+ * Auf einem 8-GB-Rechner bleiben so gut vier Gigabyte — und genau dort ist die
+ * Entscheidung wichtig, denn ein zu großes Modell lädt nicht, sondern
+ * beginnt zu tauschen und braucht Minuten je Absatz.
+ */
+export function speicherBudget(gesamtBytes = os.totalmem()) {
+  return Math.max(1.2e9, Math.round(gesamtBytes * 0.55))
+}
+
+const KANN_KEIN_TEXT = /embed|bge|clip|llava|moondream|vision|whisper|stable-?diffusion/i
+
+// Ohne Größenangabe: aus dem Namen schätzen. Ein Modell mit "7b" belegt grob
+// vier Gigabyte in der üblichen Quantisierung, also ungefähr 0,6 GB je
+// Milliarde Parameter.
+const ausNamen = (name) => {
+  const t = String(name).match(/(\d+(?:[.,]\d+)?)\s*b\b/i)
+  return t ? Number(t[1].replace(',', '.')) * 0.6e9 : 2.5e9
+}
+
+/**
+ * Das größte Modell, das noch in den Speicher passt — nicht das größte
+ * überhaupt. Passt keines, wird das kleinste genommen und die Entscheidung
+ * dem Rechner überlassen; gar nichts anzubieten wäre schlechter.
+ *
+ * Nimmt Namen (dann wird geschätzt) oder die Einträge aus /api/tags mit ihrer
+ * echten Größe.
+ */
+export function bestesModell(modelle, budget = speicherBudget()) {
+  const liste = (modelle || [])
+    .map((m) => (typeof m === 'string' ? { name: m, size: ausNamen(m) } : { name: m.name, size: m.size || ausNamen(m.name) }))
+    .filter((m) => m.name && !KANN_KEIN_TEXT.test(m.name))
+  if (!liste.length) return null
+  const passend = liste.filter((m) => m.size <= budget).sort((a, b) => b.size - a.size)
+  if (passend.length) return passend[0].name
+  return liste.sort((a, b) => a.size - b.size)[0].name
 }
 
 async function ollama(nachrichten, signal) {
@@ -105,7 +136,9 @@ export async function ollamaDa() {
     const r = await fetch(`${OLLAMA}/api/tags`, { signal: AbortSignal.timeout(1200) })
     if (r.ok) {
       const modelle = (await r.json()).models || []
-      wert = { modelle: modelle.map((m) => m.name), url: OLLAMA }
+      // Die Größe kommt mit — sie entscheidet, welches Modell auf diesem
+      // Rechner überhaupt läuft.
+      wert = { modelle: modelle.map((m) => ({ name: m.name, size: m.size || 0 })), url: OLLAMA }
     }
   } catch {
     wert = null

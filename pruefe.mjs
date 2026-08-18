@@ -3,7 +3,7 @@
 import { messen } from './server/messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './server/tippen.js'
 import { bereit } from './server/schreiben.js'
-import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell } from './server/gehirn.js'
+import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget } from './server/gehirn.js'
 import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
 
 let gut = 0
@@ -178,12 +178,24 @@ console.log('\n  BLÖCKE')
 }
 
 console.log('\n  OLLAMA-MODELLWAHL')
-for (const [ein, soll] of [
-  [['llama3.2:3b', 'qwen2.5:14b', 'nomic-embed-text'], 'qwen2.5:14b'],
-  [['llama3.2:1b', 'llama3.1:8b'], 'llama3.1:8b'],
-  [['nomic-embed-text', 'llava:7b', 'mistral:7b'], 'mistral:7b'],
-])
-  pruefe(`größtes Modell gewählt (${soll})`, bestesModell(ein) === soll, bestesModell(ein))
+// Größe zählt, aber nur bis zum Speicher. Auf einem 8-GB-Mac ist das größte
+// Modell die falsche Wahl: es lädt nicht, sondern tauscht — Minuten je Absatz.
+const GB = 1e9
+const DA = [
+  { name: 'llama3.2:3b', size: 2019393189 },
+  { name: 'qwen2.5:7b', size: 4683087519 },
+  { name: 'qwen2.5:14b', size: 8988112040 },
+  { name: 'nomic-embed-text', size: 274302450 },
+]
+for (const [ram, soll] of [[8, 'llama3.2:3b'], [16, 'qwen2.5:7b'], [32, 'qwen2.5:14b']])
+  pruefe(`${ram} GB RAM → ${soll}`, bestesModell(DA, speicherBudget(ram * GB)) === soll, bestesModell(DA, speicherBudget(ram * GB)))
+
+pruefe('Budget lässt Luft fürs System', speicherBudget(8 * GB) < 5 * GB && speicherBudget(8 * GB) > 3 * GB,
+  `${(speicherBudget(8 * GB) / GB).toFixed(1)} GB von 8`)
+pruefe('ohne Größenangabe wird geschätzt', bestesModell(['llama3.2:3b', 'qwen2.5:14b'], speicherBudget(8 * GB)) === 'llama3.2:3b')
+pruefe('Einbettungsmodell taugt nicht zum Schreiben', bestesModell([{ name: 'nomic-embed-text', size: 2e8 }]) === null)
+pruefe('Bildmodell ebenso wenig', bestesModell(['llava:7b', 'mistral:7b'], speicherBudget(16 * GB)) === 'mistral:7b')
+pruefe('passt nichts, kommt das kleinste', bestesModell([{ name: 'riesig:70b', size: 40e9 }, { name: 'gross:33b', size: 20e9 }], speicherBudget(8 * GB)) === 'gross:33b')
 pruefe('leere Liste ergibt nichts', bestesModell([]) === null)
 
 console.log('\n  STICHPUNKTE UND GRÖSSEN')
