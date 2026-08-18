@@ -12,7 +12,7 @@ import { istVerklebt, entwirren, hatFormelreste } from './entwirren.js'
 import { stand as fassung, standText } from './stand.js'
 import { nachsehen, holen, istGitOrdner } from './aktualisieren.js'
 import { spawn } from 'node:child_process'
-import { zeichen, bereit, SYSTEM, sondertastenFinden } from './schreiben.js'
+import { zeichen, bereit, SYSTEM, sondertastenFinden, mindestAbstandMs } from './schreiben.js'
 import { lesen, schreiben, oeffentlich } from './config.js'
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -26,10 +26,17 @@ async function tippenStarten({ text, dauer, zeichenProMinute, vorlauf = 5 }) {
   if (lauf?.laeuft) throw new Error('Es läuft schon ein Tipp-Lauf. Erst stoppen.')
   const plan = aufDauer(zeichenPlan(text, { zeichenProMinute }), dauerLesen(dauer))
   const schnitt = plan.gesamtMs / Math.max(1, plan.schritte.length)
-  if (schnitt < 45)
+  // Die Grenze hängt am Werkzeug: über AppleScript dauert ein Leerzeichen rund
+  // hundert Millisekunden, und wer schneller verlangt, bekommt keinen schnellen
+  // Lauf, sondern einen abgebrochenen.
+  const mindestens = mindestAbstandMs()
+  if (schnitt < mindestens) {
+    const noetig = Math.ceil((plan.schritte.length * mindestens) / 60000)
     throw new Error(
-      `Zu schnell für Tastendruck um Tastendruck (∅ ${Math.round(schnitt)} ms). Nimm eine längere Dauer.`,
+      `Zu schnell für Tastendruck um Tastendruck (∅ ${Math.round(schnitt)} ms, hier gehen ${mindestens} ms). ` +
+        `Für ${plan.schritte.length} Zeichen mindestens ${noetig} Minuten einstellen.`,
     )
+  }
 
   const abbruch = new AbortController()
   lauf = {

@@ -602,23 +602,43 @@ Woran du arbeitest:
   Technik X", sondern "Die Technik bietet X".
 - Konkretes Wort statt Allerweltswort, aktiv statt Substantivkette.`
 
-const blockAnfrage = (absatz, funde, ton, extra, grund, versuch) => [
-  { role: 'system', content: BLOCK_AUFTRAG },
-  {
-    role: 'user',
-    content: [
-      versuch > 1 ? `Dein letzter Versuch war unbrauchbar: ${grund}. Diesmal genauer.` : '',
-      funde.length ? `Schwächen dieses Absatzes:\n- ${funde.join('\n- ')}` : 'Der Absatz ist unauffällig — fass ihn nur an, wo es wirklich besser wird.',
-      ton ? `Ton: ${ton}` : '',
-      extra || '',
-      '',
-      'Absatz:',
-      absatz,
-    ]
-      .filter(Boolean)
-      .join('\n'),
-  },
-]
+// Ein englischer Text kam bisher als deutscher zurück.
+//
+// "Sprache des Originals beibehalten" stand zwar im Auftrag — auf Deutsch,
+// zwischen sechs anderen Regeln, und ringsherum lauter deutsche Sätze samt der
+// deutschen Mängelliste. Ein kleines Modell folgt der Sprache, in der man es
+// anspricht, nicht der Regel darüber. Das Tor hat es gemerkt und alles
+// verworfen: "Sprache gewechselt (en → de)", kein Absatz wurde besser.
+//
+// Also wird die Sprache jetzt in ihrer eigenen Sprache verlangt, zweimal, und
+// direkt neben dem Absatz.
+const SPRACHBEFEHL = {
+  en: 'IMPORTANT: the paragraph below is English. Your reply must be English. Do not translate it into German.',
+  de: 'WICHTIG: Der Absatz unten ist deutsch. Antworte auf Deutsch.',
+}
+
+const blockAnfrage = (absatz, funde, ton, extra, grund, versuch) => {
+  const sp = sprache(absatz) === 'en' ? 'en' : 'de'
+  const befehl = SPRACHBEFEHL[sp]
+  return [
+    { role: 'system', content: `${BLOCK_AUFTRAG}\n\n${befehl}` },
+    {
+      role: 'user',
+      content: [
+        befehl,
+        versuch > 1 ? `Dein letzter Versuch war unbrauchbar: ${grund}. Diesmal genauer.` : '',
+        funde.length ? `Schwächen dieses Absatzes:\n- ${funde.join('\n- ')}` : 'Der Absatz ist unauffällig — fass ihn nur an, wo es wirklich besser wird.',
+        ton ? `Ton: ${ton}` : '',
+        extra || '',
+        '',
+        sp === 'en' ? 'Paragraph (answer in English):' : 'Absatz:',
+        absatz,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    },
+  ]
+}
 
 /** Was an einem einzelnen Absatz nicht stimmt. null heißt: brauchbar. */
 function blockPruefen(original, neu, vorBlock) {

@@ -2,7 +2,7 @@
 //   node pruefe.mjs
 import { messen } from './server/messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './server/tippen.js'
-import { bereit, cliclickBefehl, leerWeg, umbruchWeg, LEER_REIHE, LEER_WEGE, UMBRUCH_REIHE, UMBRUCH_WEGE, tippWege, tastenName, SYSTEM } from './server/schreiben.js'
+import { bereit, cliclickBefehl, leerWeg, umbruchWeg, LEER_REIHE, LEER_WEGE, UMBRUCH_REIHE, UMBRUCH_WEGE, tippWege, tastenName, sondertaste, mindestAbstandMs, SYSTEM } from './server/schreiben.js'
 import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget, modellVorschlag, netzKlartext } from './server/gehirn.js'
 import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren, gliedern, hatFormelreste, latexEntschaerfen } from './server/entwirren.js'
@@ -405,15 +405,45 @@ console.log('\n  TASTEN AUF DEM MAC')
 pruefe('Leerzeichen läuft nicht über cliclick t:', leerWeg() !== 'cliclick-t')
 pruefe('für das Leerzeichen gibt es mehrere Wege', LEER_REIHE.length >= 3, LEER_REIHE.join(', '))
 pruefe('jeder Weg ist auch hinterlegt', LEER_REIHE.every((n) => typeof LEER_WEGE[n] === 'function'))
-pruefe('AppleScript steht vorn', LEER_REIHE[0].startsWith('applescript'), LEER_REIHE[0])
+// Die Reihenfolge geht nach Geschwindigkeit, nicht nach Vertrauen: welcher Weg
+// hier schreibt, entscheidet die Probe. Ein osascript-Aufruf dauert rund
+// hundert Millisekunden, und bei 1200 Zeichen je Minute staut sich das, bis
+// System Events mit -609 aussteigt — beim Nutzer mitten im Lauf passiert.
+pruefe('der schnellste Weg wird zuerst versucht', LEER_REIHE[0].startsWith('cliclick'), LEER_REIHE[0])
+pruefe('AppleScript bleibt als Rückfall dabei', LEER_REIHE.some((n) => n.startsWith('applescript')))
 // Der Umbruch kann genauso ausfallen wie das Leerzeichen — und richtet mehr
 // Schaden an: ohne ihn kommt ein gegliedertes Dokument drüben wieder als ein
 // Klumpen an, verklebt, obwohl es entklebt losgeschickt wurde.
 pruefe('für den Umbruch gibt es mehrere Wege', UMBRUCH_REIHE.length >= 3, UMBRUCH_REIHE.join(', '))
 pruefe('jeder Umbruch-Weg ist hinterlegt', UMBRUCH_REIHE.every((n) => typeof UMBRUCH_WEGE[n] === 'function'))
-pruefe('AppleScript steht auch hier vorn', UMBRUCH_REIHE[0].startsWith('applescript'), UMBRUCH_REIHE[0])
+pruefe('auch beim Umbruch zuerst der schnelle', UMBRUCH_REIHE[0].startsWith('cliclick'), UMBRUCH_REIHE[0])
 pruefe('der gewählte Weg ist einer aus der Reihe', UMBRUCH_REIHE.includes(umbruchWeg()), umbruchWeg())
 pruefe('Leerzeichen und Umbruch werden getrennt gemerkt', UMBRUCH_REIHE.join() !== LEER_REIHE.join())
+// Ein Lauf über 3609 Zeichen starb beim Nutzer mitten drin an einer einzigen
+// Meldung: "Die Verbindung ist ungültig (-609)". Ein überfahrenes System
+// Events, kein Defekt — und kein Grund, zwei Minuten Tippen wegzuwerfen.
+{
+  const versucht = []
+  const machen = (name, geht) => async () => {
+    versucht.push(name)
+    if (!geht) throw new Error('System Events hat einen Fehler erhalten: Die Verbindung ist ungültig. (-609)')
+  }
+  await sondertaste({ a: machen('a', false), b: machen('b', true) }, ['a', 'b'], 'a', null)
+  pruefe('ein Zucken wird noch einmal versucht', versucht.filter((n) => n === 'a').length === 2, versucht.join(' → '))
+  pruefe('dann übernimmt der nächste Weg', versucht[versucht.length - 1] === 'b')
+
+  const alleKaputt = await sondertaste({ a: machen('a', false) }, ['a'], 'a', null).then(() => null, (e) => e.message)
+  pruefe('geht gar nichts, wird es gemeldet', /-609/.test(alleKaputt || ''), (alleKaputt || '').slice(0, 40))
+
+  const nurEinmal = []
+  await sondertaste({ a: async () => nurEinmal.push('a') }, ['a'], 'a', null)
+  pruefe('was auf Anhieb geht, wird nur einmal getan', nurEinmal.length === 1)
+}
+
+// Die Tempogrenze hängt am Werkzeug, nicht am Geschmack: über AppleScript
+// dauert ein Leerzeichen rund hundert Millisekunden.
+pruefe('es gibt eine Tempogrenze', mindestAbstandMs() >= 45, `${mindestAbstandMs()} ms`)
+
 pruefe('Zeilenumbruch über kp:return', cliclickBefehl('\n') === 'kp:return')
 pruefe('Wagenrücklauf ebenso', cliclickBefehl('\r') === 'kp:return')
 pruefe('Tabulator über kp:tab', cliclickBefehl('\t') === 'kp:tab')
@@ -471,6 +501,44 @@ console.log('\n  FLOSKELN MÜSSEN WIRKLICH WEG')
   )
   pruefe('trotzdem wird abgelehnt', /wörtlich/.test(raus), raus.slice(0, 80))
   pruefe('und die Übeltäter werden benannt', /heutigen zeit/.test(raus))
+}
+
+console.log('\n  ENGLISCHER TEXT')
+// Ein englisches Dokument kam als deutsches zurück, und das Tor verwarf alles:
+// "Sprache gewechselt (en → de)". Der Auftrag stand zwar da — auf Deutsch,
+// zwischen sechs anderen Regeln, umgeben von deutschen Sätzen. Ein kleines
+// Modell folgt der Sprache, in der man es anspricht.
+{
+  const ENGLISCH =
+    'In today\'s world, the mammalian heart plays a crucial role in a wide range of biological processes. ' +
+    'Furthermore, it is important to note that a variety of factors influence how efficiently it operates. ' +
+    'Moreover, modern technology offers a wide range of new possibilities for studying these structures.'
+  pruefe('der Text gilt als englisch', messen(ENGLISCH) && (await import('./server/gehirn.js')).sprache(ENGLISCH) === 'en')
+
+  let gesehen = null
+  const ENG_ANTWORT =
+    'The mammalian heart drives two circuits at once. How well it does that depends on more than muscle mass, ' +
+    'and most of those factors are invisible from the outside. New imaging methods make some of them visible.'
+  await umschreiben(ENGLISCH, {
+    fragen: async (nachrichten) => {
+      gesehen = nachrichten
+      return ENG_ANTWORT
+    },
+  })
+  const alles = gesehen.map((n) => n.content).join('\n')
+  pruefe('die Anfrage verlangt Englisch — auf Englisch', /must be English/.test(alles))
+  pruefe('und sagt es zweimal', (alles.match(/must be English/g) || []).length >= 2)
+  pruefe('bei deutschem Text steht das nicht drin', !/must be English/.test(
+    (await (async () => {
+      let n = null
+      await umschreiben(FLACH, { fragen: async (m) => ((n = m), GUT_ABSATZ) })
+      return n.map((x) => x.content).join('\n')
+    })()),
+  ))
+
+  // Und die englische Antwort muss durchkommen, statt am Sprach-Tor zu scheitern.
+  const eng = await umschreiben(ENGLISCH, { fragen: async () => ENG_ANTWORT })
+  pruefe('eine englische Antwort wird angenommen', eng.absaetze.lektoriert === 1, eng.absaetze.behalten.join(' · '))
 }
 
 console.log('\n  RAT ZUM MODELL')

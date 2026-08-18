@@ -54,7 +54,17 @@ export const LEER_WEGE = {
   'cliclick-t': () => pexec(CLICLICK, ['t: ']),
 }
 
-export const LEER_REIHE = ['applescript-keystroke', 'applescript-keycode', 'cliclick-kp', 'cliclick-t']
+// Reihenfolge nach Geschwindigkeit, nicht nach Vertrauen — welcher Weg hier
+// überhaupt schreibt, entscheidet ohnehin die Probe, und die ist ehrlicher als
+// jede Vermutung.
+//
+// Es geht dabei nicht um Bequemlichkeit. Ein osascript-Aufruf braucht rund
+// hundert Millisekunden; bei 1200 Zeichen je Minute stehen für ein Zeichen
+// fünfzig zur Verfügung. Dann staut es sich, und System Events antwortet
+// irgendwann mit "Die Verbindung ist ungültig (-609)" — auf dem Rechner des
+// Nutzers mitten im Lauf passiert. cliclick ist ein kleines Programm und
+// vielfach schneller.
+export const LEER_REIHE = ['cliclick-kp', 'cliclick-t', 'applescript-keystroke', 'applescript-keycode']
 
 // Der Zeilenumbruch hat dasselbe Problem, und es fällt schlimmer aus.
 //
@@ -71,7 +81,7 @@ export const UMBRUCH_WEGE = {
   'cliclick-kp': () => pexec(CLICLICK, ['kp:return']),
 }
 
-export const UMBRUCH_REIHE = ['applescript-return', 'applescript-keycode', 'cliclick-kp']
+export const UMBRUCH_REIHE = ['cliclick-kp', 'applescript-return', 'applescript-keycode']
 
 const CLICLICK_TASTE = { '\t': 'kp:tab', '\n': 'kp:return', '\r': 'kp:return' }
 const OSA_TASTE = { '\t': 'tab', '\n': 'return', '\r': 'return' }
@@ -89,6 +99,24 @@ export const leerWeg = () => {
 export const umbruchWeg = () => {
   const gewaehlt = lesen().umbruchWeg
   return UMBRUCH_WEGE[gewaehlt] ? gewaehlt : UMBRUCH_REIHE[0]
+}
+
+/**
+ * Wie schnell darf hier höchstens getippt werden?
+ *
+ * Nicht der Rhythmus setzt die Grenze, sondern das Werkzeug. Ein Aufruf von
+ * osascript dauert rund hundert Millisekunden — verlangt man alle fünfzig ein
+ * Zeichen, staut sich das, bis System Events aussteigt. Genau so starb ein Lauf
+ * beim Nutzer: 3609 Zeichen in drei Minuten, also 47 ms je Zeichen, davon
+ * mehrere hundert Leerzeichen über AppleScript.
+ *
+ * cliclick ist schnell genug; nur wo AppleScript im Spiel ist, muss die Dauer
+ * länger gewählt werden.
+ */
+export function mindestAbstandMs() {
+  if (SYSTEM !== 'darwin') return 45
+  const langsam = leerWeg().startsWith('applescript') || umbruchWeg().startsWith('applescript') || !CLICLICK
+  return langsam ? 120 : 45
 }
 
 /**
@@ -112,11 +140,46 @@ export function tippWege() {
   return { werkzeug: 'xdotool type', leerzeichen: 'läuft normal mit', umbruch: 'xdotool key Return' }
 }
 
+/**
+ * Eine Sondertaste anschlagen — und nicht beim ersten Zucken aufgeben.
+ *
+ * Auf dem Rechner des Nutzers starb ein Lauf über 3609 Zeichen mitten drin an
+ * einer einzigen Meldung:
+ *
+ *   System Events hat einen Fehler erhalten: Die Verbindung ist ungültig. (-609)
+ *
+ * Das ist kein dauerhafter Defekt, sondern ein überfahrenes System Events. Ein
+ * kurzes Durchatmen genügt meist. Hilft auch das nicht, wird der nächste Weg
+ * aus der Reihe genommen und, wenn er trägt, gemerkt — der Lauf geht weiter,
+ * statt nach zwei Minuten Tippen abzubrechen.
+ */
+export async function sondertaste(wege, reihe, jetziger, schluessel) {
+  const versuche = [jetziger, jetziger, ...reihe.filter((n) => n !== jetziger)]
+  let letzter = null
+  for (let i = 0; i < versuche.length; i++) {
+    const name = versuche[i]
+    if (name.startsWith('cliclick') && !CLICLICK) continue
+    try {
+      await wege[name]()
+      // Ein anderer Weg hat es getan: ab jetzt gleich diesen nehmen.
+      // Ohne Schlüssel wird nichts gemerkt — das braucht die Prüfung, die den
+      // Weg nur durchspielen und nicht die Einstellungen umschreiben will.
+      if (name !== jetziger && schluessel) schreiben({ [schluessel]: name })
+      return
+    } catch (err) {
+      letzter = err
+      await new Promise((f) => setTimeout(f, 120))
+    }
+  }
+  throw letzter || new Error('Keine Taste ging.')
+}
+
 export async function zeichen(z) {
   if (SYSTEM === 'darwin') {
     // Leerzeichen und Umbruch gehen ihren eigenen Weg — siehe oben.
-    if (z === ' ') return void (await LEER_WEGE[leerWeg()]())
-    if (z === '\n' || z === '\r') return void (await UMBRUCH_WEGE[umbruchWeg()]())
+    if (z === ' ') return void (await sondertaste(LEER_WEGE, LEER_REIHE, leerWeg(), 'leerzeichenWeg'))
+    if (z === '\n' || z === '\r')
+      return void (await sondertaste(UMBRUCH_WEGE, UMBRUCH_REIHE, umbruchWeg(), 'umbruchWeg'))
     if (CLICLICK) {
       // cliclick ist deutlich schneller als ein AppleScript-Aufruf pro Zeichen
       // und hält damit auch flottere Tempi durch.

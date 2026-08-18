@@ -384,6 +384,23 @@ Leerzeichen, drei für den Umbruch —, und der erste funktionierende landet in
 den Einstellungen. Ab dann tippt Handschrift damit. Beim allerersten Tipp-Lauf
 macht Handschrift das von selbst, bevor der Vorlauf beginnt.
 
+Probiert wird der schnellste zuerst. Das ist keine Bequemlichkeit: ein Aufruf
+von `osascript` dauert rund hundert Millisekunden, und wer 1200 Zeichen je
+Minute verlangt, lässt für ein Zeichen fünfzig. Dann staut es sich, bis System
+Events aussteigt:
+
+```
+System Events hat einen Fehler erhalten: Die Verbindung ist ungültig. (-609)
+```
+
+Genau daran starb ein Lauf über 3609 Zeichen — mitten drin, nach zwei Minuten
+Tippen. Zwei Dinge folgen daraus. Erstens hängt die Tempogrenze am Werkzeug:
+läuft eine Sondertaste über AppleScript, verlangt Handschrift mindestens 120 ms
+je Zeichen und sagt beim Start, wie viele Minuten der Text dafür braucht.
+Zweitens gibt ein einzelnes Zucken nicht mehr den ganzen Lauf auf — die Taste
+wird noch einmal versucht, danach über den nächsten Weg aus der Reihe, und
+trägt der, wird er gemerkt.
+
 Tabulator geht weiter über `kp:tab`.
 
 Hat der Text gar keine Absätze, sagt Handschrift das vor dem Tippen — sonst
@@ -456,7 +473,7 @@ Ein Befehl, ein Urteil. Er ruft alle fünf Proben nacheinander auf und fasst sie
 zusammen; was auf diesem Rechner nicht geht, wird übersprungen und gesagt.
 
 ```
-  ✓ Rechnen        161 von 161 in Ordnung
+  ✓ Rechnen        172 von 172 in Ordnung
   ✓ Modell         12 von 12 in Ordnung
   ✓ Oberfläche     22 von 22 in Ordnung
   ✓ Tippen         16 von 16 in Ordnung
