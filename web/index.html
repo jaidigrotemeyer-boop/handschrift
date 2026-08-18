@@ -334,10 +334,15 @@ function verfolgen() {
     $('stopp').disabled = !l.laeuft
     $('tippen').disabled = l.laeuft
     $('fortschritt').style.width = `${(l.getippt / Math.max(1, l.gesamt)) * 100}%`
-    if (l.phase === 'vorlauf') {
+    if (l.phase === 'kalibriert') {
+      $('laufstand').textContent =
+        'Einmalig: Handschrift prüft kurz, wie Leerzeichen auf diesem Mac ankommen. TextEdit geht auf und wieder zu — bitte nichts anklicken.'
+    } else if (l.phase === 'vorlauf') {
       $('laufstand').textContent = `Gleich geht es los — jetzt ins Zielfenster klicken. Noch ${Math.ceil(l.restMs / 1000)} s.`
     } else if (l.laeuft) {
-      $('laufstand').textContent = `Tippt … ${l.getippt} von ${l.gesamt} Zeichen, noch etwa ${zeitText(Math.round(l.restMs / 1000))}.`
+      $('laufstand').textContent =
+        `Tippt … ${l.getippt} von ${l.gesamt} Zeichen, noch etwa ${zeitText(Math.round(l.restMs / 1000))}.` +
+        (l.kalibriert ? ` (Leerzeichen über ${l.kalibriert})` : '')
     } else {
       clearInterval(ticker)
       $('laufstand').innerHTML = l.fehler

@@ -10,7 +10,7 @@ import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } 
 import { umschreiben, anbieter, textArt } from './gehirn.js'
 import { istVerklebt, entwirren } from './entwirren.js'
 import { stand as fassung, standText } from './stand.js'
-import { zeichen, bereit, SYSTEM } from './schreiben.js'
+import { zeichen, bereit, SYSTEM, leerzeichenFinden } from './schreiben.js'
 import { lesen, schreiben, oeffentlich } from './config.js'
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -45,6 +45,15 @@ async function tippenStarten({ text, dauer, zeichenProMinute, vorlauf = 5 }) {
   // Anfang des Textes in Handschrift selbst statt im Dokument.
   ;(async () => {
     try {
+      // Einmalig auf dem Mac: herausfinden, wie ein Leerzeichen hier wirklich
+      // ankommt. Das muss vor dem Vorlauf passieren, denn dabei geht TextEdit
+      // kurz auf — währenddessen ins Zielfenster zu klicken wäre vergeblich.
+      if (SYSTEM === 'darwin' && !lesen().leerzeichenWeg) {
+        lauf.phase = 'kalibriert'
+        const such = await leerzeichenFinden().catch(() => null)
+        lauf.kalibriert = such?.sieger || 'keiner gefunden'
+        lauf.bis = Date.now() + vorlauf * 1000
+      }
       // Der Horcher wird wieder abgenommen. warte() läuft einmal pro Zeichen —
       // bei einem langen Text sammelten sich sonst zehntausende Horcher auf
       // demselben Signal an, mitsamt Warnung und wachsendem Speicher.
@@ -136,6 +145,7 @@ const server = http.createServer(async (req, res) => {
           phase: lauf.phase,
           getippt: lauf.getippt,
           gesamt: lauf.gesamt,
+          kalibriert: lauf.kalibriert,
           restMs: Math.max(0, lauf.bis - Date.now()),
           fehler: lauf.fehler,
         },
