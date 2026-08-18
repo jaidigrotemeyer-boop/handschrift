@@ -9,6 +9,7 @@
     "start": "node server/index.js",
     "pruefe": "node pruefe.mjs",
     "pruefe:browser": "node pruefe-browser.mjs",
+    "hilfe": "node hilfe.mjs",
     "messen": "node messen.mjs"
   }
 }

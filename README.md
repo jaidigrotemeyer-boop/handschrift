@@ -287,6 +287,20 @@ web/index.html Oberfläche, eine Datei, kein Bauschritt
 data/          Schlüssel und Einstellungen — bleibt hier
 ```
 
+## Wenn etwas nicht geht
+
+```bash
+node hilfe.mjs
+```
+
+Handschrift geht dann jeden Schritt selbst durch: Fassung, Node, Speicher, ob
+der Quelltext hinterherhinkt, welches Modell erreichbar ist, ob getippt werden
+kann, ob das Messen rechnet — und versucht schließlich eine echte Überarbeitung
+mit dem eigenen Modell, samt der Gründe, warum ein Absatz stehen blieb.
+
+Das Ergebnis ist ein Stück Text, das man weitergeben kann. Es beantwortet die
+Fragen, die man sonst einzeln stellen müsste.
+
 ## Prüfen
 
 ```bash
