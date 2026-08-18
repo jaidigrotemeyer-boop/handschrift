@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { messen } from './messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './tippen.js'
 import { umschreiben, anbieter, textArt } from './gehirn.js'
+import { istVerklebt, entwirren } from './entwirren.js'
 import { zeichen, bereit, SYSTEM } from './schreiben.js'
 import { lesen, schreiben, oeffentlich } from './config.js'
 
@@ -141,7 +142,13 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST' && weg === '/api/messen') {
       const roh = String((await koerper(req)).text || '')
-      return json(res, 200, { ...messen(roh), art: textArt(roh) })
+      return json(res, 200, { ...messen(roh), art: textArt(roh), verklebt: istVerklebt(roh) })
+    }
+
+    if (req.method === 'POST' && weg === '/api/entwirren') {
+      const roh = String((await koerper(req)).text || '')
+      const r = entwirren(roh)
+      return json(res, 200, { ...r, ...messen(r.text), art: textArt(r.text), verklebt: istVerklebt(r.text) })
     }
 
     if (req.method === 'POST' && weg === '/api/umschreiben') {

@@ -86,6 +86,11 @@
   .mehr .gitter { margin-top: .25rem; }
   /* Die Schlüssel liegen eine Klappe tiefer: wer Ollama nutzt, braucht sie nie. */
   .schluessel { margin-top: 1rem; }
+  .klumpen {
+    margin-top: 1.1rem; padding: .7rem .8rem; border-radius: 8px;
+    border: 1px solid var(--ton); background: var(--tonhell); font-size: .9rem;
+  }
+  .klumpen button { margin-top: .5rem; display: block; }
 </style>
 </head>
 <body>
@@ -210,7 +215,15 @@ function befundZeigen(m, art) {
     return `<li><span class="marke">${sicher(kopf)}</span><span class="stelle">${sicher(stelle)}</span></li>`
   })
 
+  // Verklebter Text zuerst: solange die Absätze fehlen, sind alle anderen
+  // Zahlen wertlos — der ganze Text gilt dann als ein einziger Absatz.
+  const klumpen = m.verklebt
+    ? `<div class="klumpen">Dieser Text hat beim Kopieren seine Absätze verloren — Überschriften und Sätze kleben aneinander.
+         <button id="entwirren">Absätze wiederherstellen</button></div>`
+    : ''
+
   $('befund').innerHTML = `
+    ${klumpen}
     <div class="urteil urteil-oben">${sicher(m.urteil)}</div>
     ${m.auffaellig.length ? `<ul class="mangel">${m.auffaellig.map((a) => `<li>${sicher(a)}</li>`).join('')}</ul>` : ''}
     <details class="mehr">

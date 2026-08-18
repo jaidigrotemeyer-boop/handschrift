@@ -5,6 +5,7 @@ import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } 
 import { bereit } from './server/schreiben.js'
 import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget } from './server/gehirn.js'
 import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
+import { istVerklebt, entwirren } from './server/entwirren.js'
 
 let gut = 0
 let schlecht = 0
@@ -246,6 +247,42 @@ for (const [was, antwort] of [
   }
   pruefe(`Absatz-Pfusch fällt auf: ${was}`, /Kein Absatz wurde besser/.test(raus || ''))
 }
+
+console.log('\n  VERKLEBTER TEXT')
+// Genau so kommt ein aus dem PDF kopierter Bericht hier an.
+const KLUMPEN =
+  'Laboratory Report: Heart Dissection1. Title Page / Cover PageTitle: Dissection of the Mammalian Heart' +
+  'Student Name: Jaidi GrotemeyerCourse: BiologyDate: August 17, 20262. IntroductionThe mammalian heart ' +
+  'is a four-chambered pump managing pulmonary and systemic circuits. The left ventricle wall is thicker ' +
+  'due to higher systemic resistance. Animal hearts are used in school labs because they closely mirror ' +
+  'human anatomy.3. MethodologyMaterials: Sheep/pig heart, dissection kit, tray, gloves, camera.' +
+  'Procedure:Examine external anatomy. Cut open a ventricle to expose chambers.4. ObservationsFigure 1: ' +
+  'Exterior view showing atria and ventricles.'
+
+pruefe('verklebter Text wird erkannt', istVerklebt(KLUMPEN))
+pruefe('sauberer Text gilt nicht als verklebt', !istVerklebt(FLACH))
+pruefe('kurzer Text gilt nicht als verklebt', !istVerklebt('Kurz. Und Ende.'))
+
+const entwirrt = entwirren(KLUMPEN)
+pruefe('Klebestellen aufgetrennt', entwirrt.schnitte > 10, `${entwirrt.schnitte} Schnitte`)
+pruefe('danach nicht mehr verklebt', !istVerklebt(entwirrt.text))
+for (const zeile of [
+  'Laboratory Report: Heart Dissection',
+  '1. Title Page / Cover Page',
+  'Student Name: Jaidi Grotemeyer',
+  'Course: Biology',
+  '2. Introduction',
+  '3. Methodology',
+  '4. Observations',
+])
+  pruefe(`eigene Zeile: "${zeile.slice(0, 28)}"`, entwirrt.text.split('\n').some((z) => z.trim() === zeile))
+
+pruefe('kein Wort verloren', (entwirrt.text.match(/[A-Za-z]/g) || []).length === (KLUMPEN.match(/[A-Za-z]/g) || []).length)
+pruefe(
+  'aus einem Block werden viele Absätze',
+  bloecke(entwirrt.text).filter((b) => b.art !== 'leer').length > bloecke(KLUMPEN).filter((b) => b.art !== 'leer').length,
+  `${bloecke(KLUMPEN).filter((b) => b.art !== 'leer').length} → ${bloecke(entwirrt.text).filter((b) => b.art !== 'leer').length}`,
+)
 
 console.log('\n  AUSDAUER')
 // Der Abbruch-Horcher hing früher bei jedem Zeichen neu am selben Signal und

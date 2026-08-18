@@ -92,6 +92,45 @@ Worauf geschaut wird:
 Unter fünf Sätzen sagt die Messung bewusst nichts über Satzlängen. Vier Zahlen
 sind keine Verteilung.
 
+## Wenn der Text seine Absätze verloren hat
+
+Kopiert man aus einem PDF, einer Web-Ansicht oder einem fertig gesetzten
+Bericht, gehen die Zeilenumbrüche oft komplett verloren:
+
+```
+Laboratory Report: Heart Dissection1. Title Page / Cover PageTitle: Dissection
+of the Mammalian HeartStudent Name: Jaidi GrotemeyerCourse: BiologyDate: …
+```
+
+Das ist nicht bloß hässlich. Ohne Absätze gilt der ganze Text als **ein**
+Absatz — und den schickt Handschrift dann am Stück zum Modell, also genau das,
+woran ein kleines Modell scheitert.
+
+**Messen** erkennt den Zustand und bietet einen Knopf an. Aus dem Klumpen oben
+werden neun Blöcke:
+
+```
+Laboratory Report: Heart Dissection
+
+1. Title Page / Cover Page
+Title: Dissection of the Mammalian Heart
+Student Name: Jaidi Grotemeyer
+Course: Biology
+Date: August 17, 2026
+
+2. Introduction
+The mammalian heart is a four-chambered pump …
+```
+
+Getrennt wird nur an deutlichen Klebestellen: fehlendes Leerzeichen nach dem
+Satzende, eine Abschnittsnummer am Wort (`Dissection1.`, `anatomy.3.`), eine
+Beschriftung mit Doppelpunkt (`GrotemeyerCourse:`, `ObservationsFigure 1:`),
+ein Doppelpunkt direkt vor einem Großbuchstaben (`Procedure:Examine`). Geraten
+wird nicht, und kein Buchstabe geht verloren.
+
+Der Knopf erscheint nur, wenn es wirklich danach aussieht — und er drückt sich
+nicht von selbst. Es ist dein Text.
+
 ## Lektorieren
 
 **Umschreiben** arbeitet **Absatz für Absatz**, nicht am Stück. Das hat einen
@@ -242,6 +281,7 @@ server/
   schreiben.js schlägt die Tasten an (macOS, Windows, Linux)
   gehirn.js    Umschreiben mit Nachmessen (Ollama oder Gratis-Anbieter)
   bloecke.js   Text in Absätze, Listen, Code zerlegen und zurück
+  entwirren.js verklebten Text erkennen und wieder auftrennen
   config.js    Einstellungen in data/
 web/index.html Oberfläche, eine Datei, kein Bauschritt
 data/          Schlüssel und Einstellungen — bleibt hier
@@ -254,5 +294,5 @@ node pruefe.mjs
 ```
 
 Misst flachen gegen lebendigen Text, prüft den Rhythmus, die Dauer-Eingaben,
-die Grenzen, den Stopp, die Absatz-Zerlegung, alle Tore und die Modellwahl
-nach Arbeitsspeicher — 75 Prüfungen, ohne dass eine Taste angeschlagen oder ein Modell angerufen wird.
+die Grenzen, den Stopp, die Absatz-Zerlegung, das Entwirren, alle Tore und die
+Modellwahl nach Arbeitsspeicher — 89 Prüfungen, ohne dass eine Taste angeschlagen oder ein Modell angerufen wird.
