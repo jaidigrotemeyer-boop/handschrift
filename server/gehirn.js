@@ -434,6 +434,31 @@ const anfrage = (text, funde, ton, extra, runde, nachtrag) => [
  * Misslingt ein Absatz, bleibt genau dieser Absatz stehen. Vorher fiel in dem
  * Fall die ganze Überarbeitung durch.
  */
+/**
+ * Aus einem Netzfehler einen Satz machen, mit dem sich etwas anfangen lässt.
+ *
+ * Node nennt eine nicht zustande gekommene Verbindung "fetch failed". Wer daheim
+ * Ollama beendet hat und dann auf Umschreiben drückt, las bisher:
+ *
+ *   Kein Gehirn hat geantwortet.
+ *   ollama (llama3.2:3b): fetch failed
+ *
+ * Beides stimmt und beides hilft nicht. Die eigentliche Auskunft — starte
+ * Ollama wieder — stand nur in der Meldung für den Fall, dass beim Start schon
+ * keines da war.
+ */
+export function netzKlartext(name, err) {
+  const roh = err?.message || String(err)
+  if (/fetch failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|network/i.test(roh))
+    return /ollama/i.test(name)
+      ? `${name}: antwortet nicht mehr. Läuft "ollama serve" noch?`
+      : `${name}: keine Verbindung — hängt das Netz?`
+  if (/timeout|timed out|abort/i.test(roh)) return `${name}: hat zu lange gebraucht.`
+  if (/\b401\b|unauthorized|invalid.*key/i.test(roh)) return `${name}: der Schlüssel wird nicht angenommen.`
+  if (/\b429\b|rate.?limit/i.test(roh)) return `${name}: zu viele Anfragen — später noch einmal.`
+  return `${name}: ${roh}`
+}
+
 export async function umschreiben(text, { ton, extra, signal, versucheJeBlock = 2, fragen } = {}) {
   const roh = String(text || '').trim()
   if (!roh) throw new Error('Kein Text da.')
@@ -475,7 +500,7 @@ export async function umschreiben(text, { ton, extra, signal, versucheJeBlock = 
           break
         } catch (err) {
           if (err?.name === 'AbortError') throw err
-          netzfehler.push(`${a.name}: ${err.message}`)
+          netzfehler.push(netzKlartext(a.name, err))
         }
       }
       if (antwort === null) break

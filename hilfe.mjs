@@ -15,7 +15,7 @@ import { messen } from './server/messen.js'
 import { bloecke, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren } from './server/entwirren.js'
 import { anbieter, ollamaDa, bestesModell, speicherBudget, umschreiben } from './server/gehirn.js'
-import { bereit, tippProbe, cliclickBefehl, leerzeichenFinden, leerWeg } from './server/schreiben.js'
+import { bereit, tippProbe, leerzeichenFinden, tippWege } from './server/schreiben.js'
 import { standText } from './server/stand.js'
 import { lesen } from './server/config.js'
 
@@ -66,8 +66,10 @@ const b = await bereit()
 zeile('möglich', b.ok ? 'ja' : 'NEIN')
 zeile('Hinweis', b.hinweis)
 if (b.rechte) zeile('Rechte', b.rechte)
-zeile('Leerzeichen über', leerWeg())
-zeile('Umbruch über', cliclickBefehl('\n'))
+const wege = tippWege()
+zeile('Werkzeug', wege.werkzeug)
+zeile('Leerzeichen über', wege.leerzeichen)
+zeile('Umbruch über', wege.umbruch)
 
 // Die eigentliche Frage bei "der getippte Text klebt" lässt sich nur auf dem
 // Rechner selbst beantworten: einmal wirklich tippen und zurücklesen.
@@ -149,6 +151,7 @@ try {
 } catch (err) {
   zeile('Rechenteil', 'FEHLER — ' + String(err.stdout || err.message).trim().split('\n').pop())
 }
+console.log('  (alle fünf Proben mit:  npm run pruefe)')
 if (fs.existsSync('data/einstellungen.json')) {
   const c = lesen()
   const schluessel = ['geminiKey', 'groqKey', 'openrouterKey', 'cerebrasKey'].filter((k) => c[k])

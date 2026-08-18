@@ -2,8 +2,8 @@
 //   node pruefe.mjs
 import { messen } from './server/messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './server/tippen.js'
-import { bereit, cliclickBefehl, leerWeg, LEER_REIHE, LEER_WEGE } from './server/schreiben.js'
-import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget } from './server/gehirn.js'
+import { bereit, cliclickBefehl, leerWeg, LEER_REIHE, LEER_WEGE, tippWege, tastenName, SYSTEM } from './server/schreiben.js'
+import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget, netzKlartext } from './server/gehirn.js'
 import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren, gliedern } from './server/entwirren.js'
 
@@ -384,6 +384,44 @@ pruefe('Wagenrücklauf ebenso', cliclickBefehl('\r') === 'kp:return')
 pruefe('Tabulator über kp:tab', cliclickBefehl('\t') === 'kp:tab')
 for (const z of ['H', 'a', '.', 'ä', '-', ':', '/'])
   pruefe(`"${z}" wird normal getippt`, cliclickBefehl(z) === 't:' + z)
+
+console.log('\n  TASTEN AUF LINUX')
+// "xdotool type" verlor die Umlaute stillschweigend: "Lücken" kam als "Lcken"
+// an, "(äöü)" als "()" — ohne Fehler, ohne Meldung. Über den Tastennamen
+// kommen sie an. Nachgemessen in pruefe-tippen.mjs.
+pruefe('"ü" bekommt einen Tastennamen', tastenName('ü') === 'U00FC', tastenName('ü'))
+pruefe('"ä" ebenso', tastenName('ä') === 'U00E4')
+pruefe('"ß" ebenso', tastenName('ß') === 'U00DF')
+pruefe('auch ein Gedankenstrich', tastenName('—') === 'U2014')
+pruefe('der Name ist immer vier Stellen lang', ['ü', 'é', '„'].every((z) => /^U[0-9A-F]{4,}$/.test(tastenName(z))))
+
+// Die Selbstauskunft gab auf einem Linux-Rechner "Leerzeichen über
+// applescript-keystroke" aus — den Mac-Weg, auf einem System ohne AppleScript.
+// Wer bei "geht nicht" die Auskunft liest, sucht dann am falschen Ort.
+{
+  const w = tippWege()
+  pruefe('die Auskunft nennt ein Werkzeug', !!w.werkzeug && !!w.leerzeichen && !!w.umbruch, Object.values(w).join(' · '))
+  const macSache = /cliclick|applescript|keystroke|kp:/i
+  pruefe(
+    'und auf diesem System nur, was es hier gibt',
+    SYSTEM === 'darwin' || !macSache.test(Object.values(w).join(' ')),
+    SYSTEM,
+  )
+}
+
+console.log('\n  MELDUNGEN, WENN ES KLEMMT')
+// "fetch failed" ist Nodes Wort für "keine Verbindung" und für den Nutzer
+// nichts. Wer Ollama beendet hat, soll lesen, dass Ollama fehlt.
+pruefe(
+  'ein toter Ollama sagt, was zu tun ist',
+  /ollama serve/.test(netzKlartext('ollama (llama3.2:3b)', new Error('fetch failed'))),
+  netzKlartext('ollama (llama3.2:3b)', new Error('fetch failed')),
+)
+pruefe('abgewiesene Verbindung ebenso', /ollama serve/.test(netzKlartext('ollama (x)', new Error('connect ECONNREFUSED 127.0.0.1:11434'))))
+pruefe('ein anderer Anbieter fragt nach dem Netz', /Netz/.test(netzKlartext('groq', new Error('fetch failed'))), netzKlartext('groq', new Error('fetch failed')))
+pruefe('ein falscher Schlüssel wird benannt', /Schlüssel/.test(netzKlartext('groq', new Error('401 Unauthorized'))))
+pruefe('zu viele Anfragen werden benannt', /später/.test(netzKlartext('groq', new Error('429 rate limit exceeded'))))
+pruefe('Unbekanntes wird durchgereicht', netzKlartext('groq', new Error('Modell kaputt')) === 'groq: Modell kaputt')
 
 console.log('\n  SELBST AKTUALISIEREN')
 // Der ganze Weg — eigenes Repo, echter Commit, echter Neustart — steckt in

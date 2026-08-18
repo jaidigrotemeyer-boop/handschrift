@@ -8,10 +8,17 @@ import path from 'node:path'
 import { messen } from './server/messen.js'
 
 const quelle = process.argv[2]
-if (!quelle || quelle === '--hilfe') {
+// Nach Hilfe wird auf vier Arten gefragt, und wer "--help" tippt, hat keine
+// Lust auf ein rohes ENOENT als Antwort.
+const FRAGT = ['--hilfe', '-h', '--help', '-?']
+if (!quelle || FRAGT.includes(quelle)) {
   console.log('\n  node messen.mjs <datei>     Text abklopfen')
   console.log('  node messen.mjs -          von der Standardeingabe\n')
   process.exit(quelle ? 0 : 1)
+}
+if (quelle !== '-' && quelle.startsWith('-')) {
+  console.error(`\n  Unbekannte Angabe: ${quelle}  (Hilfe mit --hilfe)\n`)
+  process.exit(1)
 }
 
 try {

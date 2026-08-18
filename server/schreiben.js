@@ -68,6 +68,27 @@ export const leerWeg = () => {
   return LEER_WEGE[gewaehlt] ? gewaehlt : LEER_REIHE[0]
 }
 
+/**
+ * Wie wird auf diesem Rechner wirklich getippt? Nur für die Selbstauskunft.
+ *
+ * Es lohnt sich, das getrennt zu beantworten: die Selbstauskunft meldete auf
+ * einem Linux-Rechner "Leerzeichen über applescript-keystroke", weil sie den
+ * Mac-Weg ungefragt mit ausgab. Das ist keine Kleinigkeit — wer bei "geht
+ * nicht" die Auskunft liest, sucht dann an einer Stelle, die es hier gar nicht
+ * gibt.
+ */
+export function tippWege() {
+  if (SYSTEM === 'darwin')
+    return {
+      werkzeug: CLICLICK ? `cliclick (${CLICLICK})` : 'AppleScript',
+      leerzeichen: leerWeg(),
+      umbruch: CLICLICK ? cliclickBefehl('\n') : 'keystroke return',
+    }
+  if (SYSTEM === 'win32')
+    return { werkzeug: 'PowerShell SendKeys', leerzeichen: 'läuft normal mit', umbruch: '{ENTER}' }
+  return { werkzeug: 'xdotool type', leerzeichen: 'läuft normal mit', umbruch: 'xdotool key Return' }
+}
+
 export async function zeichen(z) {
   if (SYSTEM === 'darwin') {
     // Leerzeichen gehen ihren eigenen Weg — siehe oben.
@@ -94,8 +115,26 @@ export async function zeichen(z) {
   }
 
   if (z === '\n' || z === '\r') return void (await pexec('xdotool', ['key', 'Return']))
+  // Umlaute und alles andere jenseits von ASCII gehen über den Tastennamen,
+  // nicht über "type" — siehe unten.
+  if (z.codePointAt(0) > 127) return void (await pexec('xdotool', ['key', '--clearmodifiers', tastenName(z)]))
   await pexec('xdotool', ['type', '--clearmodifiers', '--delay', '0', '--', z])
 }
+
+// "xdotool type" und die Umlaute — zweimal falsch, bis es gemessen war.
+//
+// Ohne UTF-8 in der Umgebung bricht es hart ab: "Invalid multi-byte sequence
+// encountered". Weil jedes Zeichen einzeln getippt wird, endet der ganze Lauf
+// dann mitten im ersten Wort mit Umlaut. Ein deutscher Text kommt nie durch.
+//
+// Setzt man LC_ALL=C.UTF-8 dazu, ist der Fehler weg — und das Zeichen trotzdem
+// auch: "Lücken" kam als "Lcken" an, "(äöü)" als "()". Kein Fehler, keine
+// Meldung, nur weniger Text. Das ist derselbe stille Verlust wie beim
+// Leerzeichen auf dem Mac, und er fällt genauso erst beim Nachlesen auf.
+//
+// Über den Tastennamen kommt das Zeichen an, nachgemessen als 303 274 — ü.
+/** Der Tastenname für ein Zeichen — "ü" wird zu "U00FC". Getrennt, damit prüfbar. */
+export const tastenName = (z) => 'U' + z.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')
 
 /**
  * Welcher Weg schreibt hier wirklich ein Leerzeichen?

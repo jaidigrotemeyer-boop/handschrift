@@ -7,10 +7,13 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "start": "node server/index.js",
-    "pruefe": "node pruefe.mjs",
+    "pruefe": "node pruefe-alles.mjs",
+    "pruefe:rechnen": "node pruefe.mjs",
+    "pruefe:modell": "node pruefe-ollama.mjs",
     "pruefe:browser": "node pruefe-browser.mjs",
-    "hilfe": "node hilfe.mjs",
+    "pruefe:tippen": "node pruefe-tippen.mjs",
     "pruefe:update": "node pruefe-update.mjs",
+    "hilfe": "node hilfe.mjs",
     "messen": "node messen.mjs"
   }
 }

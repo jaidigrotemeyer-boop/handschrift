@@ -377,29 +377,48 @@ Fragen, die man sonst einzeln stellen müsste.
 ## Prüfen
 
 ```bash
-node pruefe.mjs
+npm run pruefe
 ```
 
-Misst flachen gegen lebendigen Text, prüft den Rhythmus, die Dauer-Eingaben,
-die Grenzen, den Stopp, die Absatz-Zerlegung, das Auftrennen und Gliedern, alle
-Tore und die Modellwahl nach Arbeitsspeicher — 119 Prüfungen, ohne dass eine
-Taste angeschlagen oder ein Modell angerufen wird.
+Ein Befehl, ein Urteil. Er ruft alle fünf Proben nacheinander auf und fasst sie
+zusammen; was auf diesem Rechner nicht geht, wird übersprungen und gesagt.
 
-```bash
-node pruefe-browser.mjs
+```
+  ✓ Rechnen        132 von 132 in Ordnung
+  ✓ Modell         12 von 12 in Ordnung
+  ✓ Oberfläche     17 von 17 in Ordnung
+  ✓ Tippen         10 von 10 in Ordnung
+  ✓ Aktualisieren  8 von 8 in Ordnung
 ```
 
-Bedient die Seite wirklich: klickt die Knöpfe, liest, was danach im Feld steht.
-Der Unterschied ist nicht akademisch — der Knopf „Absätze wiederherstellen“ war
+Die fünf lassen sich auch einzeln aufrufen. Sie prüfen mit Absicht
+unterschiedliche Dinge — jede von ihnen deckt Fehler auf, die die anderen nicht
+sehen können.
+
+**`node pruefe.mjs`** — das Rechnen. Misst flachen gegen lebendigen Text, prüft
+den Rhythmus, die Dauer-Eingaben, die Grenzen, den Stopp, die
+Absatz-Zerlegung, das Auftrennen und Gliedern, alle Tore und die Modellwahl
+nach Arbeitsspeicher. Ohne Netz, ohne Tastendruck.
+
+**`node pruefe-ollama.mjs`** — der Weg zum Modell. Eine Attrappe spricht das
+echte Ollama-Protokoll: Handschrift muss sie finden, das passende Modell
+wählen, absatzweise fragen und mit der Antwort etwas anfangen. Prüft auch, was
+in der Meldung steht, wenn Ollama mitten im Betrieb wegfällt.
+
+**`node pruefe-browser.mjs`** — die Oberfläche, wirklich angeklickt. Der
+Unterschied ist nicht akademisch: der Knopf „Absätze wiederherstellen“ war
 einmal da, sichtbar, ohne Fehler in der Konsole, und tat nichts, weil sein
 Klick-Ohr nie angehängt wurde. Über die Schnittstelle allein ist das
-unsichtbar. Braucht Playwright; fehlt es, wird der Test übersprungen statt zu
-scheitern.
+unsichtbar. Braucht Playwright.
 
-```bash
-node pruefe-update.mjs
-```
+**`node pruefe-tippen.mjs`** — das Tippen, und danach nachgelesen. Öffnet ein
+Fenster, lässt Handschrift hineintippen und vergleicht Zeichen für Zeichen, was
+angekommen ist. Genau hier fielen die Fehler auf, die sonst niemand sieht: das
+verschluckte Leerzeichen auf dem Mac und die verschwundenen Umlaute unter
+Linux. Braucht Linux mit `xdotool` und `xterm`; auf dem Mac übernimmt das
+`node hilfe.mjs --tippen`.
 
-Baut ein eigenes Repo, setzt einen echten Commit hinein und lässt Handschrift
-sich daraus selbst holen und neu starten — inklusive der Probe, dass eigene
-Änderungen am Quelltext nicht überfahren werden.
+**`node pruefe-update.mjs`** — das Selbst-Aktualisieren. Baut ein eigenes Repo,
+setzt einen echten Commit hinein und lässt Handschrift sich daraus holen und
+neu starten — inklusive der Probe, dass eigene Änderungen am Quelltext nicht
+überfahren werden.
