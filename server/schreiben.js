@@ -56,6 +56,23 @@ export const LEER_WEGE = {
 
 export const LEER_REIHE = ['applescript-keystroke', 'applescript-keycode', 'cliclick-kp', 'cliclick-t']
 
+// Der Zeilenumbruch hat dasselbe Problem, und es fällt schlimmer aus.
+//
+// Ein verschlucktes Leerzeichen klebt zwei Wörter zusammen. Ein verschluckter
+// Umbruch klebt das ganze Dokument zusammen: der Text, den Handschrift gerade
+// mühsam in Überschriften, Stichpunkte und Schritte zerlegt hat, kommt drüben
+// wieder als ein Klumpen an. Genau davon war die Rede.
+//
+// Also wird auch dieser Weg gesucht statt geraten.
+export const UMBRUCH_WEGE = {
+  'applescript-return': () => osa('tell application "System Events" to keystroke return'),
+  // Tastencode 36 ist die Zeilenschalttaste.
+  'applescript-keycode': () => osa('tell application "System Events" to key code 36'),
+  'cliclick-kp': () => pexec(CLICLICK, ['kp:return']),
+}
+
+export const UMBRUCH_REIHE = ['applescript-return', 'applescript-keycode', 'cliclick-kp']
+
 const CLICLICK_TASTE = { '\t': 'kp:tab', '\n': 'kp:return', '\r': 'kp:return' }
 const OSA_TASTE = { '\t': 'tab', '\n': 'return', '\r': 'return' }
 
@@ -66,6 +83,12 @@ export const cliclickBefehl = (z) => CLICLICK_TASTE[z] || `t:${z}`
 export const leerWeg = () => {
   const gewaehlt = lesen().leerzeichenWeg
   return LEER_WEGE[gewaehlt] ? gewaehlt : LEER_REIHE[0]
+}
+
+/** Der Weg für den Umbruch: eingestellter, sonst der erste der Reihe. */
+export const umbruchWeg = () => {
+  const gewaehlt = lesen().umbruchWeg
+  return UMBRUCH_WEGE[gewaehlt] ? gewaehlt : UMBRUCH_REIHE[0]
 }
 
 /**
@@ -82,7 +105,7 @@ export function tippWege() {
     return {
       werkzeug: CLICLICK ? `cliclick (${CLICLICK})` : 'AppleScript',
       leerzeichen: leerWeg(),
-      umbruch: CLICLICK ? cliclickBefehl('\n') : 'keystroke return',
+      umbruch: umbruchWeg(),
     }
   if (SYSTEM === 'win32')
     return { werkzeug: 'PowerShell SendKeys', leerzeichen: 'läuft normal mit', umbruch: '{ENTER}' }
@@ -91,8 +114,9 @@ export function tippWege() {
 
 export async function zeichen(z) {
   if (SYSTEM === 'darwin') {
-    // Leerzeichen gehen ihren eigenen Weg — siehe oben.
+    // Leerzeichen und Umbruch gehen ihren eigenen Weg — siehe oben.
     if (z === ' ') return void (await LEER_WEGE[leerWeg()]())
+    if (z === '\n' || z === '\r') return void (await UMBRUCH_WEGE[umbruchWeg()]())
     if (CLICLICK) {
       // cliclick ist deutlich schneller als ein AppleScript-Aufruf pro Zeichen
       // und hält damit auch flottere Tempi durch.
@@ -147,15 +171,10 @@ export const tastenName = (z) => 'U' + z.codePointAt(0).toString(16).toUpperCase
  * macOS-Fassung ein Leerzeichen setzt, steht in keiner Dokumentation
  * verlässlich — auf einem echten Rechner lieferte "kp:space" gar nichts.
  */
-export async function leerzeichenFinden() {
-  if (SYSTEM !== 'darwin') return { moeglich: false, grund: 'Die Probe gibt es bisher nur auf dem Mac.' }
-
-  await osa('tell application "TextEdit" to activate')
-  await new Promise((f) => setTimeout(f, 900))
-
+async function wegSuchen({ reihe, wege, erkennen, schluessel }) {
   const ergebnisse = []
   let sieger = null
-  for (const name of LEER_REIHE) {
+  for (const name of reihe) {
     if (name.startsWith('cliclick') && !CLICLICK) {
       ergebnisse.push({ name, geht: false, grund: 'cliclick nicht installiert' })
       continue
@@ -165,7 +184,7 @@ export async function leerzeichenFinden() {
       await new Promise((f) => setTimeout(f, 700))
       await zeichenRoh('a')
       await new Promise((f) => setTimeout(f, 120))
-      await LEER_WEGE[name]()
+      await wege[name]()
       await new Promise((f) => setTimeout(f, 120))
       await zeichenRoh('b')
       await new Promise((f) => setTimeout(f, 400))
@@ -175,16 +194,58 @@ export async function leerzeichenFinden() {
       ])
       const kam = stdout.replace(/\n$/, '')
       await pexec('osascript', ['-e', 'tell application "TextEdit" to close front document saving no']).catch(() => {})
-      const geht = kam.includes('a b')
+      const geht = erkennen(kam)
       ergebnisse.push({ name, geht, kam })
       if (geht && !sieger) sieger = name
     } catch (err) {
       ergebnisse.push({ name, geht: false, grund: err.message.split('\n')[0] })
     }
   }
-
-  if (sieger) schreiben({ leerzeichenWeg: sieger })
+  if (sieger) schreiben({ [schluessel]: sieger })
   return { moeglich: true, ergebnisse, sieger, gemerkt: !!sieger }
+}
+
+export async function leerzeichenFinden() {
+  if (SYSTEM !== 'darwin') return { moeglich: false, grund: 'Die Probe gibt es bisher nur auf dem Mac.' }
+  await osa('tell application "TextEdit" to activate')
+  await new Promise((f) => setTimeout(f, 900))
+  return wegSuchen({
+    reihe: LEER_REIHE,
+    wege: LEER_WEGE,
+    erkennen: (kam) => kam.includes('a b'),
+    schluessel: 'leerzeichenWeg',
+  })
+}
+
+/**
+ * Und welcher Weg macht hier wirklich eine neue Zeile auf?
+ *
+ * Dieselbe Probe, dieselbe Not. Fällt der Umbruch aus, kommt der Text, den
+ * Handschrift gerade in Überschriften, Stichpunkte und Schritte zerlegt hat,
+ * drüben wieder als ein einziger Klumpen an — verklebt, obwohl er entklebt
+ * losgeschickt wurde.
+ *
+ * TextEdit gibt seine Zeilen mal mit \n, mal mit \r zurück. Geprüft wird
+ * darum, ob zwischen "a" und "b" überhaupt ein Zeilenende steht.
+ */
+export async function umbruchFinden() {
+  if (SYSTEM !== 'darwin') return { moeglich: false, grund: 'Die Probe gibt es bisher nur auf dem Mac.' }
+  await osa('tell application "TextEdit" to activate')
+  await new Promise((f) => setTimeout(f, 900))
+  return wegSuchen({
+    reihe: UMBRUCH_REIHE,
+    wege: UMBRUCH_WEGE,
+    erkennen: (kam) => /a[\r\n]+b/.test(kam),
+    schluessel: 'umbruchWeg',
+  })
+}
+
+/** Beide Sondertasten hintereinander — was der erste Lauf braucht. */
+export async function sondertastenFinden() {
+  const leer = await leerzeichenFinden()
+  if (!leer.moeglich) return { moeglich: false, grund: leer.grund }
+  const umbruch = await umbruchFinden()
+  return { moeglich: true, leer, umbruch }
 }
 
 // Ein Zeichen ohne die Leerzeichen-Sonderbehandlung — für die Probe selbst.
@@ -205,8 +266,12 @@ async function zeichenRoh(z) {
  * schreibt sonst selbst groß oder korrigiert, und die Probe meldete einen
  * Fehler, den es gar nicht gibt. Fehlende Leerzeichen kann es nicht erfinden —
  * darum ist deren Zahl das eigentliche Urteil.
+ *
+ * Und ein Umbruch steht mit drin, seit klar ist, dass er genauso ausfallen
+ * kann wie das Leerzeichen. Fällt er aus, kommt ein gegliedertes Dokument
+ * drüben wieder als ein Klumpen an.
  */
-export async function tippProbe(text = 'abc def ghi jkl') {
+export async function tippProbe(text = 'abc def\nghi jkl') {
   if (SYSTEM !== 'darwin') return { moeglich: false, grund: 'Die Probe gibt es bisher nur auf dem Mac.' }
 
   await osa('tell application "TextEdit" to activate')
@@ -221,11 +286,16 @@ export async function tippProbe(text = 'abc def ghi jkl') {
   await new Promise((f) => setTimeout(f, 600))
 
   const { stdout } = await pexec('osascript', ['-e', 'tell application "TextEdit" to get text of front document'])
-  const angekommen = stdout.replace(/\n$/, '')
+  // TextEdit gibt seine Zeilenenden mal als \r zurück, mal als \n. Das ist
+  // kein Unterschied, um den es hier geht.
+  const angekommen = stdout.replace(/\n$/, '').replace(/\r\n?/g, '\n')
   await pexec('osascript', ['-e', 'tell application "TextEdit" to close front document saving no']).catch(() => {})
 
-  const leerzeichenGewollt = (text.match(/ /g) || []).length
-  const leerzeichenAngekommen = (angekommen.match(/ /g) || []).length
+  const zaehlen = (s, muster) => (s.match(muster) || []).length
+  const leerzeichenGewollt = zaehlen(text, / /g)
+  const leerzeichenAngekommen = zaehlen(angekommen, / /g)
+  const umbruecheGewollt = zaehlen(text, /\n/g)
+  const umbruecheAngekommen = zaehlen(angekommen, /\n/g)
   return {
     moeglich: true,
     weg: CLICLICK ? 'cliclick' : 'AppleScript',
@@ -234,8 +304,11 @@ export async function tippProbe(text = 'abc def ghi jkl') {
     gleich: angekommen === text,
     leerzeichenGewollt,
     leerzeichenAngekommen,
-    // Das ist die Frage, um die es geht. Groß- und Kleinschreibung kann TextEdit
-    // von sich aus ändern; fehlende Leerzeichen kann es nicht.
+    umbruecheGewollt,
+    umbruecheAngekommen,
+    // Darum geht es. Groß- und Kleinschreibung kann TextEdit von sich aus
+    // ändern; fehlende Leerzeichen und fehlende Umbrüche kann es nicht.
     leerzeichenOk: leerzeichenAngekommen === leerzeichenGewollt,
+    umbruchOk: umbruecheAngekommen === umbruecheGewollt,
   }
 }

@@ -12,7 +12,7 @@ import { istVerklebt, entwirren } from './entwirren.js'
 import { stand as fassung, standText } from './stand.js'
 import { nachsehen, holen, istGitOrdner } from './aktualisieren.js'
 import { spawn } from 'node:child_process'
-import { zeichen, bereit, SYSTEM, leerzeichenFinden } from './schreiben.js'
+import { zeichen, bereit, SYSTEM, sondertastenFinden } from './schreiben.js'
 import { lesen, schreiben, oeffentlich } from './config.js'
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -47,13 +47,20 @@ async function tippenStarten({ text, dauer, zeichenProMinute, vorlauf = 5 }) {
   // Anfang des Textes in Handschrift selbst statt im Dokument.
   ;(async () => {
     try {
-      // Einmalig auf dem Mac: herausfinden, wie ein Leerzeichen hier wirklich
-      // ankommt. Das muss vor dem Vorlauf passieren, denn dabei geht TextEdit
-      // kurz auf — währenddessen ins Zielfenster zu klicken wäre vergeblich.
-      if (SYSTEM === 'darwin' && !lesen().leerzeichenWeg) {
+      // Einmalig auf dem Mac: herausfinden, wie ein Leerzeichen und wie ein
+      // Zeilenumbruch hier wirklich ankommen. Das muss vor dem Vorlauf
+      // passieren, denn dabei geht TextEdit kurz auf — währenddessen ins
+      // Zielfenster zu klicken wäre vergeblich.
+      //
+      // Beide zusammen, denn beide gehen einzeln verloren: ohne Leerzeichen
+      // kleben die Wörter, ohne Umbruch klebt das ganze Dokument.
+      if (SYSTEM === 'darwin' && !(lesen().leerzeichenWeg && lesen().umbruchWeg)) {
         lauf.phase = 'kalibriert'
-        const such = await leerzeichenFinden().catch(() => null)
-        lauf.kalibriert = such?.sieger || 'keiner gefunden'
+        const such = await sondertastenFinden().catch(() => null)
+        lauf.kalibriert = [
+          `Leerzeichen: ${such?.leer?.sieger || 'keiner'}`,
+          `Umbruch: ${such?.umbruch?.sieger || 'keiner'}`,
+        ].join(', ')
         lauf.bis = Date.now() + vorlauf * 1000
       }
       // Der Horcher wird wieder abgenommen. warte() läuft einmal pro Zeichen —

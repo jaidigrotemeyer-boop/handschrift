@@ -312,7 +312,7 @@ Ergebnis, und die wäre erfunden. Dafür ist Handschrift nicht gebaut.
 kommt kein Zeichen an. Schneller tippt es mit `brew install cliclick`.
 **Windows** tippt über PowerShell, **Linux** über `xdotool`.
 
-### Das Leerzeichen auf dem Mac
+### Leerzeichen und Umbruch auf dem Mac
 
 Der wunde Punkt, zweimal falsch geraten und dann nachgemessen.
 
@@ -320,17 +320,25 @@ Der wunde Punkt, zweimal falsch geraten und dann nachgemessen.
 im Dokument stand `Erstezeilehier`. Der naheliegende Ersatz `kp:space` tat auf
 einem echten Rechner gar nichts: **0 von 3 Leerzeichen kamen an.**
 
-Darum gibt es jetzt vier Wege und eine Probe, die herausfindet, welcher hier
-wirklich schreibt:
+Der Zeilenumbruch hängt am selben Faden, und sein Ausfall wiegt schwerer. Ein
+verschlucktes Leerzeichen klebt zwei Wörter zusammen. Ein verschluckter Umbruch
+klebt das ganze Dokument zusammen: der Text, den Handschrift gerade in
+Überschriften, Stichpunkte und Schritte zerlegt hat, kommt drüben wieder als
+ein Klumpen an — aufgetrennt losgeschickt, verklebt angekommen, und niemand
+meldet einen Fehler, denn getippt wurde ja.
+
+Darum wird beides gesucht statt geraten:
 
 ```bash
 node hilfe.mjs --tippen
 ```
 
-TextEdit geht kurz auf, jeder Weg wird einzeln versucht, der erste
-funktionierende landet in den Einstellungen. Ab dann tippt Handschrift damit.
+TextEdit geht kurz auf, jeder Weg wird einzeln versucht — vier fürs
+Leerzeichen, drei für den Umbruch —, und der erste funktionierende landet in
+den Einstellungen. Ab dann tippt Handschrift damit. Beim allerersten Tipp-Lauf
+macht Handschrift das von selbst, bevor der Vorlauf beginnt.
 
-Tabulator und Zeilenumbruch gehen weiter über `kp:tab` und `kp:return`.
+Tabulator geht weiter über `kp:tab`.
 
 Hat der Text gar keine Absätze, sagt Handschrift das vor dem Tippen — sonst
 landet er auch ohne Absätze im Dokument, und das merkt man erst hinterher. Ein
@@ -402,11 +410,11 @@ Ein Befehl, ein Urteil. Er ruft alle fünf Proben nacheinander auf und fasst sie
 zusammen; was auf diesem Rechner nicht geht, wird übersprungen und gesagt.
 
 ```
-  ✓ Rechnen        132 von 132 in Ordnung
+  ✓ Rechnen        137 von 137 in Ordnung
   ✓ Modell         12 von 12 in Ordnung
   ✓ Oberfläche     17 von 17 in Ordnung
-  ✓ Tippen         10 von 10 in Ordnung
-  ✓ Aktualisieren  8 von 8 in Ordnung
+  ✓ Tippen         16 von 16 in Ordnung
+  ✓ Aktualisieren  10 von 10 in Ordnung
 ```
 
 Die fünf lassen sich auch einzeln aufrufen. Sie prüfen mit Absicht

@@ -2,7 +2,7 @@
 //   node pruefe.mjs
 import { messen } from './server/messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './server/tippen.js'
-import { bereit, cliclickBefehl, leerWeg, LEER_REIHE, LEER_WEGE, tippWege, tastenName, SYSTEM } from './server/schreiben.js'
+import { bereit, cliclickBefehl, leerWeg, umbruchWeg, LEER_REIHE, LEER_WEGE, UMBRUCH_REIHE, UMBRUCH_WEGE, tippWege, tastenName, SYSTEM } from './server/schreiben.js'
 import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget, netzKlartext } from './server/gehirn.js'
 import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren, gliedern } from './server/entwirren.js'
@@ -379,6 +379,14 @@ pruefe('Leerzeichen läuft nicht über cliclick t:', leerWeg() !== 'cliclick-t')
 pruefe('für das Leerzeichen gibt es mehrere Wege', LEER_REIHE.length >= 3, LEER_REIHE.join(', '))
 pruefe('jeder Weg ist auch hinterlegt', LEER_REIHE.every((n) => typeof LEER_WEGE[n] === 'function'))
 pruefe('AppleScript steht vorn', LEER_REIHE[0].startsWith('applescript'), LEER_REIHE[0])
+// Der Umbruch kann genauso ausfallen wie das Leerzeichen — und richtet mehr
+// Schaden an: ohne ihn kommt ein gegliedertes Dokument drüben wieder als ein
+// Klumpen an, verklebt, obwohl es entklebt losgeschickt wurde.
+pruefe('für den Umbruch gibt es mehrere Wege', UMBRUCH_REIHE.length >= 3, UMBRUCH_REIHE.join(', '))
+pruefe('jeder Umbruch-Weg ist hinterlegt', UMBRUCH_REIHE.every((n) => typeof UMBRUCH_WEGE[n] === 'function'))
+pruefe('AppleScript steht auch hier vorn', UMBRUCH_REIHE[0].startsWith('applescript'), UMBRUCH_REIHE[0])
+pruefe('der gewählte Weg ist einer aus der Reihe', UMBRUCH_REIHE.includes(umbruchWeg()), umbruchWeg())
+pruefe('Leerzeichen und Umbruch werden getrennt gemerkt', UMBRUCH_REIHE.join() !== LEER_REIHE.join())
 pruefe('Zeilenumbruch über kp:return', cliclickBefehl('\n') === 'kp:return')
 pruefe('Wagenrücklauf ebenso', cliclickBefehl('\r') === 'kp:return')
 pruefe('Tabulator über kp:tab', cliclickBefehl('\t') === 'kp:tab')

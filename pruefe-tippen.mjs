@@ -20,6 +20,7 @@ import { promisify } from 'node:util'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { entwirren, istVerklebt } from './server/entwirren.js'
 
 const pexec = promisify(execFile)
 const PORT = Number(process.env.PORT) || 3098
@@ -125,6 +126,52 @@ try {
   )
   ok('die Umlaute sind mitgekommen', /äöü/.test(kam))
   ok('es steht Zeichen für Zeichen richtig da', kam === TEXT, kam === TEXT ? '' : JSON.stringify(kam))
+
+  // Und jetzt die eigentliche Frage: was aufgetrennt losgeschickt wurde, muss
+  // auch aufgetrennt ankommen. Fällt der Umbruch aus, klebt drüben wieder
+  // alles zusammen — ohne Fehlermeldung, denn getippt wurde ja.
+  console.log('')
+  fs.rmSync(ZIEL, { force: true })
+  const fenster2 = spawn('xterm', ['-u8', '-T', 'handschrift-probe2', '-e', `cat > ${ZIEL}`], {
+    stdio: 'ignore',
+    env: { ...process.env, LC_ALL: 'C.UTF-8', LANG: 'C.UTF-8' },
+  })
+  await warte(2000)
+  const { stdout: id2 } = await pexec('xdotool', ['search', '--name', 'handschrift-probe2'])
+  await pexec('xdotool', ['windowactivate', '--sync', id2.trim().split('\n')[0]]).catch(() => {})
+  await pexec('xdotool', ['windowfocus', id2.trim().split('\n')[0]])
+  await warte(500)
+
+  const KLUMPEN =
+    'Laboratory Report: Heart Dissection1. Title Page / Cover PageTitle: Dissection of the Mammalian Heart' +
+    'Student Name: Jaidi GrotemeyerCourse: BiologyDate: August 17, 20262. IntroductionThe mammalian heart ' +
+    'is a four-chambered pump managing pulmonary and systemic circuits. The left ventricle wall is thicker ' +
+    'due to higher systemic resistance.3. MethodologyMaterials: Sheep heart, dissection kit, tray, gloves.' +
+    'Procedure:Examine external anatomy. Cut open a ventricle.'
+  const GEGLIEDERT = entwirren(KLUMPEN).text
+
+  await hole('/api/tippen', { text: GEGLIEDERT + '\n', dauer: '40s', vorlauf: 1 })
+  let zweiter = null
+  for (let i = 0; i < 160; i++) {
+    await warte(500)
+    zweiter = (await hole('/api/stand')).lauf
+    if (!zweiter?.laeuft) break
+  }
+  ok('der gegliederte Text geht durch', zweiter?.getippt === zweiter?.gesamt, `${zweiter?.getippt} von ${zweiter?.gesamt}`)
+
+  await warte(800)
+  const kam2 = fs.existsSync(ZIEL) ? fs.readFileSync(ZIEL, 'utf8').replace(/\r/g, '').trim() : ''
+  fenster2.kill()
+
+  ok(
+    'die Umbrüche sind mitgekommen',
+    kam2.split('\n').length === GEGLIEDERT.split('\n').length,
+    `${kam2.split('\n').length} von ${GEGLIEDERT.split('\n').length} Zeilen`,
+  )
+  ok('die Stichpunkte stehen einzeln', kam2.split('\n').filter((z) => z.startsWith('* ')).length >= 3)
+  ok('die Einrückung der Schritte bleibt', /\n {3}1\. /.test('\n' + kam2))
+  ok('drüben klebt nichts mehr', !istVerklebt(kam2), istVerklebt(kam2) ? 'wieder ein Klumpen!' : '')
+  ok('und es steht genau so da wie geschickt', kam2 === GEGLIEDERT.trim())
 } catch (err) {
   // Ein Absturz mitten in der Probe ist ein kaputter Punkt, kein Seitenroman.
   ok('die Probe läuft durch', false, err.message.split('\n')[0])

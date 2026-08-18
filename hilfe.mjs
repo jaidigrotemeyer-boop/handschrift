@@ -15,7 +15,7 @@ import { messen } from './server/messen.js'
 import { bloecke, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren } from './server/entwirren.js'
 import { anbieter, ollamaDa, bestesModell, speicherBudget, umschreiben } from './server/gehirn.js'
-import { bereit, tippProbe, leerzeichenFinden, tippWege } from './server/schreiben.js'
+import { bereit, tippProbe, sondertastenFinden, tippWege } from './server/schreiben.js'
 import { stand, standText } from './server/stand.js'
 import { lesen } from './server/config.js'
 
@@ -102,12 +102,20 @@ zeile('Umbruch über', wege.umbruch)
 if (process.argv.includes('--tippen')) {
   console.log('\n  Tipp-Probe: TextEdit geht gleich auf, bitte nichts anklicken …')
   try {
-    // Erst herausfinden, welcher Weg hier überhaupt ein Leerzeichen schreibt.
-    const such = await leerzeichenFinden()
+    // Erst herausfinden, welche Wege hier überhaupt schreiben. Beide werden
+    // gebraucht: ohne Leerzeichen kleben die Wörter, ohne Umbruch das ganze
+    // Dokument.
+    const such = await sondertastenFinden()
     if (such.moeglich) {
-      for (const e of such.ergebnisse)
+      console.log('\n  Leerzeichen:')
+      for (const e of such.leer.ergebnisse)
         zeile('  ' + e.name, e.geht ? '✓ schreibt ein Leerzeichen' : `✗ ${e.grund || 'kam als ' + JSON.stringify(e.kam)}`)
-      zeile('gewählt', such.sieger ? `${such.sieger} (gemerkt)` : '✗ KEINER — bitte melden')
+      zeile('gewählt', such.leer.sieger ? `${such.leer.sieger} (gemerkt)` : '✗ KEINER — bitte melden')
+      console.log('\n  Zeilenumbruch:')
+      for (const e of such.umbruch.ergebnisse)
+        zeile('  ' + e.name, e.geht ? '✓ macht eine neue Zeile auf' : `✗ ${e.grund || 'kam als ' + JSON.stringify(e.kam)}`)
+      zeile('gewählt', such.umbruch.sieger ? `${such.umbruch.sieger} (gemerkt)` : '✗ KEINER — bitte melden')
+      console.log('')
     }
     const p = await tippProbe()
     if (!p.moeglich) {
@@ -117,8 +125,17 @@ if (process.argv.includes('--tippen')) {
       zeile('gewollt', JSON.stringify(p.gewollt))
       zeile('angekommen', JSON.stringify(p.angekommen))
       zeile('Leerzeichen', `${p.leerzeichenAngekommen} von ${p.leerzeichenGewollt} angekommen`)
-      zeile('Leerzeichen ok', p.leerzeichenOk ? 'ja' : '✗ NEIN — hier klebt es')
-      zeile('Ergebnis', p.gleich ? 'stimmt genau überein' : p.leerzeichenOk ? 'Leerzeichen stimmen (TextEdit hat sonst etwas geändert)' : '✗ Zeichen gehen verloren')
+      zeile('Leerzeichen ok', p.leerzeichenOk ? 'ja' : '✗ NEIN — hier kleben die Wörter')
+      zeile('Umbrüche', `${p.umbruecheAngekommen} von ${p.umbruecheGewollt} angekommen`)
+      zeile('Umbrüche ok', p.umbruchOk ? 'ja' : '✗ NEIN — hier klebt das ganze Dokument')
+      zeile(
+        'Ergebnis',
+        p.gleich
+          ? 'stimmt genau überein'
+          : p.leerzeichenOk && p.umbruchOk
+            ? 'Leerzeichen und Umbrüche stimmen (TextEdit hat sonst etwas geändert)'
+            : '✗ Zeichen gehen verloren',
+      )
     }
   } catch (err) {
     zeile('Probe', 'ging schief: ' + err.message)
