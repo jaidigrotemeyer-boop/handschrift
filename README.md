@@ -394,9 +394,15 @@ System Events hat einen Fehler erhalten: Die Verbindung ist ungültig. (-609)
 ```
 
 Genau daran starb ein Lauf über 3609 Zeichen — mitten drin, nach zwei Minuten
-Tippen. Zwei Dinge folgen daraus. Erstens hängt die Tempogrenze am Werkzeug:
-läuft eine Sondertaste über AppleScript, verlangt Handschrift mindestens 120 ms
-je Zeichen und sagt beim Start, wie viele Minuten der Text dafür braucht.
+Tippen. Zwei Dinge folgen daraus.
+
+Erstens hängt die Tempogrenze am Werkzeug, und zwar daran, **wie oft** die
+langsame Taste vorkommt. Läuft das Leerzeichen über AppleScript, ist jedes
+sechste Zeichen langsam — dann verlangt Handschrift mindestens 120 ms je
+Zeichen und sagt beim Start, wie viele Minuten der Text dafür braucht. Ist
+dagegen nur der Umbruch langsam, bleibt es bei 45 ms: dreißig Tasten im ganzen
+Dokument, und an der Absatzgrenze wird ohnehin am längsten gewartet.
+
 Zweitens gibt ein einzelnes Zucken nicht mehr den ganzen Lauf auf — die Taste
 wird noch einmal versucht, danach über den nächsten Weg aus der Reihe, und
 trägt der, wird er gemerkt.
@@ -473,7 +479,7 @@ Ein Befehl, ein Urteil. Er ruft alle fünf Proben nacheinander auf und fasst sie
 zusammen; was auf diesem Rechner nicht geht, wird übersprungen und gesagt.
 
 ```
-  ✓ Rechnen        172 von 172 in Ordnung
+  ✓ Rechnen        176 von 176 in Ordnung
   ✓ Modell         12 von 12 in Ordnung
   ✓ Oberfläche     22 von 22 in Ordnung
   ✓ Tippen         16 von 16 in Ordnung

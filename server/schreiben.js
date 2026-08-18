@@ -110,13 +110,24 @@ export const umbruchWeg = () => {
  * beim Nutzer: 3609 Zeichen in drei Minuten, also 47 ms je Zeichen, davon
  * mehrere hundert Leerzeichen über AppleScript.
  *
- * cliclick ist schnell genug; nur wo AppleScript im Spiel ist, muss die Dauer
- * länger gewählt werden.
+ * Entscheidend ist dabei, wie oft die langsame Taste vorkommt, nicht ob es sie
+ * gibt.
  */
-export function mindestAbstandMs() {
-  if (SYSTEM !== 'darwin') return 45
-  const langsam = leerWeg().startsWith('applescript') || umbruchWeg().startsWith('applescript') || !CLICLICK
-  return langsam ? 120 : 45
+// Die Lage wird hereingereicht statt abgefragt, damit sich alle drei Fälle
+// prüfen lassen — auch die beiden, die es nur auf einem Mac gibt.
+export function mindestAbstandMs({ system = SYSTEM, cliclick = !!CLICLICK, leer = leerWeg() } = {}) {
+  if (system !== 'darwin') return 45
+  // Ohne cliclick läuft jedes einzelne Zeichen über AppleScript.
+  if (!cliclick) return 120
+  // Etwa jedes sechste Zeichen ist ein Leerzeichen. Geht das über AppleScript,
+  // bestimmt es das Tempo des ganzen Laufs.
+  if (leer.startsWith('applescript')) return 120
+  // Der Umbruch allein zählt nicht. Er kommt vielleicht alle hundert Zeichen,
+  // und an einer Absatzgrenze wird ohnehin am längsten gewartet — dort ist Zeit
+  // für einen langsamen Anschlag. Auf einem Mac, wo cliclick zwar das
+  // Leerzeichen schreibt, aber kp:return nichts tut, hätten 120 ms sonst das
+  // ganze Dokument ausgebremst, wegen dreißig Tasten.
+  return 45
 }
 
 /**

@@ -442,7 +442,16 @@ pruefe('Leerzeichen und Umbruch werden getrennt gemerkt', UMBRUCH_REIHE.join() !
 
 // Die Tempogrenze hängt am Werkzeug, nicht am Geschmack: über AppleScript
 // dauert ein Leerzeichen rund hundert Millisekunden.
+// Entscheidend ist, wie oft die langsame Taste vorkommt. Der Umbruch allein
+// zählt nicht: dreißig Tasten im Dokument, und an der Absatzgrenze wird ohnehin
+// am längsten gewartet. Sonst bremste ein Mac, auf dem nur kp:return streikt,
+// den ganzen Text aus.
 pruefe('es gibt eine Tempogrenze', mindestAbstandMs() >= 45, `${mindestAbstandMs()} ms`)
+const mac = (leer, cliclick = true) => mindestAbstandMs({ system: 'darwin', cliclick, leer })
+pruefe('ein langsamer Umbruch bremst nicht alles aus', mac('cliclick-t') === 45, `${mac('cliclick-t')} ms`)
+pruefe('ein langsames Leerzeichen schon', mac('applescript-keystroke') === 120, `${mac('applescript-keystroke')} ms`)
+pruefe('ohne cliclick ist alles langsam', mac('applescript-keystroke', false) === 120)
+pruefe('außerhalb vom Mac gilt der schnelle Wert', mindestAbstandMs({ system: 'linux' }) === 45)
 
 pruefe('Zeilenumbruch über kp:return', cliclickBefehl('\n') === 'kp:return')
 pruefe('Wagenrücklauf ebenso', cliclickBefehl('\r') === 'kp:return')
