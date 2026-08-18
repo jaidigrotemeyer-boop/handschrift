@@ -72,3 +72,50 @@ export async function zeichen(z) {
   if (z === '\n' || z === '\r') return void (await pexec('xdotool', ['key', 'Return']))
   await pexec('xdotool', ['type', '--clearmodifiers', '--delay', '0', '--', z])
 }
+
+/**
+ * Tipp-Probe auf dem Mac: in ein frisches TextEdit-Fenster schreiben und
+ * zurücklesen, was wirklich angekommen ist.
+ *
+ * Ohne das lässt sich "der getippte Text klebt" nicht klären — auf einem
+ * fremden Rechner sieht man nur das Ergebnis, nicht den Weg dorthin. Hier
+ * schreibt Handschrift eine bekannte Zeichenfolge und vergleicht.
+ *
+ * Die Probe ist absichtlich ohne Satzzeichen und ohne echte Wörter: TextEdit
+ * schreibt sonst selbst groß oder korrigiert, und die Probe meldete einen
+ * Fehler, den es gar nicht gibt. Fehlende Leerzeichen kann es nicht erfinden —
+ * darum ist deren Zahl das eigentliche Urteil.
+ */
+export async function tippProbe(text = 'abc def ghi jkl') {
+  if (SYSTEM !== 'darwin') return { moeglich: false, grund: 'Die Probe gibt es bisher nur auf dem Mac.' }
+
+  await osa('tell application "TextEdit" to activate')
+  await new Promise((f) => setTimeout(f, 900))
+  await osa('tell application "TextEdit" to make new document')
+  await new Promise((f) => setTimeout(f, 900))
+
+  for (const z of text) {
+    await zeichen(z)
+    await new Promise((f) => setTimeout(f, 45))
+  }
+  await new Promise((f) => setTimeout(f, 600))
+
+  const { stdout } = await pexec('osascript', ['-e', 'tell application "TextEdit" to get text of front document'])
+  const angekommen = stdout.replace(/\n$/, '')
+  await pexec('osascript', ['-e', 'tell application "TextEdit" to close front document saving no']).catch(() => {})
+
+  const leerzeichenGewollt = (text.match(/ /g) || []).length
+  const leerzeichenAngekommen = (angekommen.match(/ /g) || []).length
+  return {
+    moeglich: true,
+    weg: CLICLICK ? 'cliclick' : 'AppleScript',
+    gewollt: text,
+    angekommen,
+    gleich: angekommen === text,
+    leerzeichenGewollt,
+    leerzeichenAngekommen,
+    // Das ist die Frage, um die es geht. Groß- und Kleinschreibung kann TextEdit
+    // von sich aus ändern; fehlende Leerzeichen kann es nicht.
+    leerzeichenOk: leerzeichenAngekommen === leerzeichenGewollt,
+  }
+}

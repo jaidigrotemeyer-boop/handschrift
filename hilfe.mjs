@@ -15,7 +15,7 @@ import { messen } from './server/messen.js'
 import { bloecke, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren } from './server/entwirren.js'
 import { anbieter, ollamaDa, bestesModell, speicherBudget, umschreiben } from './server/gehirn.js'
-import { bereit } from './server/schreiben.js'
+import { bereit, tippProbe, cliclickBefehl } from './server/schreiben.js'
 import { standText } from './server/stand.js'
 import { lesen } from './server/config.js'
 
@@ -66,6 +66,31 @@ const b = await bereit()
 zeile('möglich', b.ok ? 'ja' : 'NEIN')
 zeile('Hinweis', b.hinweis)
 if (b.rechte) zeile('Rechte', b.rechte)
+zeile('Leerzeichen als', cliclickBefehl(' '))
+zeile('Umbruch als', cliclickBefehl('\n'))
+
+// Die eigentliche Frage bei "der getippte Text klebt" lässt sich nur auf dem
+// Rechner selbst beantworten: einmal wirklich tippen und zurücklesen.
+if (process.argv.includes('--tippen')) {
+  console.log('\n  Tipp-Probe: TextEdit geht gleich auf, bitte nichts anklicken …')
+  try {
+    const p = await tippProbe()
+    if (!p.moeglich) {
+      zeile('Probe', p.grund)
+    } else {
+      zeile('Weg', p.weg)
+      zeile('gewollt', JSON.stringify(p.gewollt))
+      zeile('angekommen', JSON.stringify(p.angekommen))
+      zeile('Leerzeichen', `${p.leerzeichenAngekommen} von ${p.leerzeichenGewollt} angekommen`)
+      zeile('Leerzeichen ok', p.leerzeichenOk ? 'ja' : '✗ NEIN — hier klebt es')
+      zeile('Ergebnis', p.gleich ? 'stimmt genau überein' : p.leerzeichenOk ? 'Leerzeichen stimmen (TextEdit hat sonst etwas geändert)' : '✗ Zeichen gehen verloren')
+    }
+  } catch (err) {
+    zeile('Probe', 'ging schief: ' + err.message)
+  }
+} else {
+  console.log('  (echte Tipp-Probe mit:  node hilfe.mjs --tippen)')
+}
 
 console.log('\nMESSEN (rechnet lokal, muss immer gehen)')
 const PROBE =
