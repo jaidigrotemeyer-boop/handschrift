@@ -2,7 +2,7 @@
 //   node pruefe.mjs
 import { messen } from './server/messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './server/tippen.js'
-import { bereit } from './server/schreiben.js'
+import { bereit, cliclickBefehl } from './server/schreiben.js'
 import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget } from './server/gehirn.js'
 import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren } from './server/entwirren.js'
@@ -337,6 +337,20 @@ console.log('\n  AUSDAUER')
   globalThis.fetch = echt
   pruefe('Ollama wird gemerkt statt dreimal gefragt', rufe <= 1, `${rufe} Netzanfrage(n) bei 3 Abfragen`)
 }
+
+console.log('\n  TASTEN AUF DEM MAC')
+// "t: " übergibt cliclick ein Leerzeichen am Rand — und Rand wird abgeschnitten.
+// Genau daran klebte der getippte Text zusammen.
+pruefe('Leerzeichen bekommt eine eigene Taste', cliclickBefehl(' ') === 'kp:space')
+pruefe('Zeilenumbruch ebenso', cliclickBefehl('\n') === 'kp:return')
+pruefe('Wagenrücklauf ebenso', cliclickBefehl('\r') === 'kp:return')
+pruefe('Tabulator ebenso', cliclickBefehl('\t') === 'kp:tab')
+for (const z of ['H', 'a', '.', 'ä', '-', ':', '/'])
+  pruefe(`"${z}" wird normal getippt`, cliclickBefehl(z) === 't:' + z)
+pruefe(
+  'ein ganzes Wort ergibt lauter einzelne Befehle',
+  [...'Ha lo'].map(cliclickBefehl).join(' ') === 't:H t:a kp:space t:l t:o',
+)
 
 console.log('\n  SYSTEM')
 const b = await bereit()

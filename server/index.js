@@ -161,6 +161,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && weg === '/api/tippen') {
       const daten = await koerper(req)
       if (!String(daten.text || '').length) throw new Error('Kein Text da.')
+      // Ohne Absätze kommt der Text auch ohne Absätze im Dokument an. Das ist
+      // selten gewollt und ärgert erst, wenn schon alles getippt ist.
+      if (istVerklebt(daten.text) && !daten.trotzdem)
+        throw new Error(
+          'Dieser Text hat keine Absätze — so landet er auch im Dokument. Erst „Absätze wiederherstellen" drücken, oder das Tippen noch einmal starten, um es trotzdem zu tun.',
+        )
       return json(res, 200, await tippenStarten(daten))
     }
 

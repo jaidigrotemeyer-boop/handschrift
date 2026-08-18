@@ -271,6 +271,16 @@ Ergebnis, und die wäre erfunden. Dafür ist Handschrift nicht gebaut.
 kommt kein Zeichen an. Schneller tippt es mit `brew install cliclick`.
 **Windows** tippt über PowerShell, **Linux** über `xdotool`.
 
+Leerzeichen, Tabulator und Zeilenumbruch bekommen auf dem Mac eigene Tasten
+(`kp:space`, `kp:tab`, `kp:return`) statt über `t:` zu gehen. Der Grund ist
+unscheinbar und die Wirkung nicht: `t:` schneidet Leerraum am Rand ab, und ein
+einzelnes Leerzeichen ist nur Rand. Es fiel weg, und im Dokument stand
+`Erstezeilehier`.
+
+Hat der Text gar keine Absätze, sagt Handschrift das vor dem Tippen — sonst
+landet er auch ohne Absätze im Dokument, und das merkt man erst hinterher. Ein
+zweiter Druck auf **Tippen starten** heißt: doch so.
+
 ## Ordner
 
 ```

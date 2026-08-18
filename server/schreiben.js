@@ -36,15 +36,24 @@ export async function bereit() {
 const winEscape = (z) => (/[+^%~(){}[\]]/.test(z) ? `{${z}}` : z)
 
 /** Ein einzelnes Zeichen anschlagen. */
+// cliclick bekommt bei "t:" alles hinter dem Doppelpunkt als Text — nur eben
+// ohne Leerzeichen am Rand. Ein einzelnes Leerzeichen ist genau das: Rand.
+// Es fällt weg, und dann klebt der getippte Text zusammen ("Erstezeilehier").
+// Für Leerzeichen und Tabulator gibt es eigene Tasten, die nimmt es zuverlässig.
+const CLICLICK_TASTE = { ' ': 'kp:space', '\t': 'kp:tab', '\n': 'kp:return', '\r': 'kp:return' }
+const OSA_TASTE = { ' ': 'space', '\t': 'tab', '\n': 'return', '\r': 'return' }
+
+/** Welchen cliclick-Befehl bekommt dieses Zeichen? Getrennt, damit prüfbar. */
+export const cliclickBefehl = (z) => CLICLICK_TASTE[z] || `t:${z}`
+
 export async function zeichen(z) {
   if (SYSTEM === 'darwin') {
-    if (z === '\n' || z === '\r') {
-      if (CLICLICK) return void (await pexec(CLICLICK, ['kp:return']))
-      return void (await osa('tell application "System Events" to keystroke return'))
+    if (CLICLICK) {
+      // cliclick ist deutlich schneller als ein AppleScript-Aufruf pro Zeichen
+      // und hält damit auch flottere Tempi durch.
+      return void (await pexec(CLICLICK, [cliclickBefehl(z)]))
     }
-    // cliclick ist deutlich schneller als ein AppleScript-Aufruf pro Zeichen
-    // und hält damit auch flottere Tempi durch.
-    if (CLICLICK) return void (await pexec(CLICLICK, [`t:${z}`]))
+    if (OSA_TASTE[z]) return void (await osa(`tell application "System Events" to keystroke ${OSA_TASTE[z]}`))
     const esc = z.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
     return void (await osa(`tell application "System Events" to keystroke "${esc}"`))
   }

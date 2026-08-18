@@ -303,16 +303,22 @@ $('umschreiben').onclick = async () => {
   }
 }
 
+// Beim ersten Anlauf warnt der Server, wenn der Text keine Absätze hat. Wer
+// erneut drückt, meint es so — dann geht es trotzdem los.
+let trotzdem = false
 $('tippen').onclick = async () => {
   try {
     await hole('/api/tippen', {
       text: $('text').value,
       dauer: `${reglerZuSekunden(+$('regler').value)}s`,
       vorlauf: +$('vorlauf').value || 0,
+      trotzdem,
     })
+    trotzdem = false
     verfolgen()
   } catch (e) {
-    $('laufstand').innerHTML = `<span class="fehler">${e.message}</span>`
+    trotzdem = /keine Absätze/.test(e.message)
+    $('laufstand').innerHTML = `<span class="fehler">${sicher(e.message)}</span>`
   }
 }
 
