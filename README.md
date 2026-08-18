@@ -311,6 +311,32 @@ web/index.html Oberfläche, eine Datei, kein Bauschritt
 data/          Schlüssel und Einstellungen — bleibt hier
 ```
 
+## Aktuell bleiben
+
+Handschrift schaut selbst nach. Beim Start und danach alle zehn Minuten fragt
+sie beim Repo an, ob etwas Neueres bereitliegt. Liegt es, steht im Terminal:
+
+```
+  ⟳ Neuere Fassung bereit (2 Änderungen) — in der Oberfläche holen.
+```
+
+und oben auf der Seite ein Kasten mit dem Knopf **Jetzt holen**. Ein Druck
+darauf holt den neuen Stand, startet Handschrift neu und lädt die Seite frisch
+— ohne Terminal, ohne `git pull`.
+
+Geholt wird nur auf Anforderung. Ungefragt Code nachladen und ausführen wäre
+bequem und falsch; es ist dein Rechner.
+
+Hast du am Quelltext selbst etwas geändert, bricht Handschrift ab und sagt es,
+statt deine Arbeit zu überschreiben. Dann entscheidest du: sichern mit
+`git stash` oder verwerfen mit `git reset --hard origin/main`.
+
+Von Hand geht es weiter wie bisher:
+
+```bash
+cd ~/handschrift && git pull && npm start
+```
+
 ## Wenn etwas nicht geht
 
 ```bash

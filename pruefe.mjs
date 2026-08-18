@@ -352,6 +352,19 @@ pruefe('Tabulator über kp:tab', cliclickBefehl('\t') === 'kp:tab')
 for (const z of ['H', 'a', '.', 'ä', '-', ':', '/'])
   pruefe(`"${z}" wird normal getippt`, cliclickBefehl(z) === 't:' + z)
 
+console.log('\n  SELBST AKTUALISIEREN')
+// Der ganze Weg — eigenes Repo, echter Commit, echter Neustart — steckt in
+// pruefe-update.mjs. Hier nur, was ohne Netz und ohne Neustart prüfbar ist.
+{
+  const { nachsehen, istGitOrdner } = await import('./server/aktualisieren.js')
+  pruefe('merkt, ob es ein git-Ordner ist', typeof istGitOrdner() === 'boolean')
+  const n = await nachsehen()
+  pruefe('Nachsehen liefert eine Antwort', typeof n.da === 'boolean' && typeof n.commits === 'number', JSON.stringify(n))
+  const t0 = Date.now()
+  await nachsehen()
+  pruefe('zweites Nachsehen kommt aus dem Gedächtnis', Date.now() - t0 < 150, `${Date.now() - t0} ms`)
+}
+
 console.log('\n  SYSTEM')
 const b = await bereit()
 pruefe('Tipp-Weg geprüft', typeof b.ok === 'boolean', b.hinweis)

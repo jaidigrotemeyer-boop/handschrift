@@ -10,6 +10,7 @@
     "pruefe": "node pruefe.mjs",
     "pruefe:browser": "node pruefe-browser.mjs",
     "hilfe": "node hilfe.mjs",
+    "pruefe:update": "node pruefe-update.mjs",
     "messen": "node messen.mjs"
   }
 }
