@@ -16,7 +16,7 @@ import { bloecke, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren } from './server/entwirren.js'
 import { anbieter, ollamaDa, bestesModell, speicherBudget, umschreiben } from './server/gehirn.js'
 import { bereit, tippProbe, leerzeichenFinden, tippWege } from './server/schreiben.js'
-import { standText } from './server/stand.js'
+import { stand, standText } from './server/stand.js'
 import { lesen } from './server/config.js'
 
 const pexec = promisify(execFile)
@@ -41,6 +41,32 @@ try {
   if (n) console.log('\n  ⚠ Der Quelltext ist nicht aktuell. Erst "git pull", dann neu starten.\n')
 } catch {
   zeile('Zweig', 'kein git — Stand nicht prüfbar')
+}
+
+console.log('\nSERVER')
+// "Die Website ist nicht erreichbar" beantwortet die Frage nicht, ob überhaupt
+// etwas läuft. Hier wird nachgesehen — auf dem gewohnten Port und auf den
+// Ausweichports, falls der belegt war.
+{
+  const von = Number(process.env.PORT) || 3018
+  let gefunden = null
+  for (let p = von; p <= von + 10 && !gefunden; p++) {
+    try {
+      const r = await fetch(`http://localhost:${p}/api/stand`, { signal: AbortSignal.timeout(700) })
+      if (r.ok) gefunden = { port: p, stand: (await r.json()).stand }
+    } catch {}
+  }
+  if (gefunden) {
+    zeile('läuft', `ja — http://localhost:${gefunden.port}`)
+    zeile('dessen Fassung', `${gefunden.stand?.fassung} · ${gefunden.stand?.commit || 'unbekannt'}`)
+    if (gefunden.stand?.commit && gefunden.stand.commit !== stand.commit)
+      console.log('\n  ⚠ Der laufende Server ist eine andere Fassung als dieser Ordner. Einmal neu starten.\n')
+  } else {
+    zeile('läuft', 'NEIN — nichts antwortet')
+    console.log('\n  Darum sagt der Browser "Verbindung abgelehnt". Starten mit:')
+    console.log('    npm start          (oder: node server/index.js)')
+    console.log('  Das Terminal-Fenster dabei offen lassen.\n')
+  }
 }
 
 console.log('\nGEHIRN (fürs Umschreiben)')

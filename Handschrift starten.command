@@ -21,19 +21,9 @@ fi
 
 # Kein npm install: Handschrift hat keine Abhängigkeiten.
 
-PORT="${PORT:-3018}"
-
-# Der Browser geht erst auf, wenn der Server wirklich antwortet
-(
-  for _ in $(seq 1 40); do
-    if curl -s -o /dev/null "http://localhost:$PORT"; then
-      open "http://localhost:$PORT"
-      exit 0
-    fi
-    sleep 0.5
-  done
-) &
-
-printf '  Startet auf http://localhost:%s\n' "$PORT"
+# Den Browser macht der Server selbst auf, sobald er wirklich lauscht — und
+# zwar auf dem Port, den er bekommen hat. Hier stand früher eine eigene
+# Warteschleife dafür; die riet den Port nur und lag daneben, sobald der
+# gewohnte belegt war.
 printf '  Dieses Fenster offen lassen. Zum Beenden: Strg+C\n\n'
 node server/index.js

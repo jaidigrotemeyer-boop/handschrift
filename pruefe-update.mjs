@@ -65,6 +65,28 @@ try {
   ok('und zwar mit der neuen Fassung', nachher?.stand.fassung === '99.0.0', nachher?.stand.fassung)
   ok('meldet nichts Neues mehr', nachher?.neu.da === false)
 
+  // Der Neustart oben musste denselben Port zurückerobern — sonst hätte die
+  // Abfrage ihn gar nicht wiedergefunden. Ein zweiter, von Hand gestarteter
+  // Server muss sich dagegen einen freien suchen, statt aufzugeben: sonst
+  // steht im Browser nur "Verbindung abgelehnt", ohne einen Grund dafür.
+  // Aus dem Arbeitsordner gestartet, nicht aus dem Klon: der Klon kennt nur,
+  // was schon eingecheckt ist, und geprüft werden soll der Stand von jetzt.
+  const zweiter = spawn(process.execPath, ['server/index.js'], {
+    env: { ...process.env, PORT: String(PORT) },
+    stdio: 'ignore',
+  })
+  let ausweich = null
+  for (let i = 0; i < 20 && !ausweich; i++) {
+    await warte(400)
+    ausweich = await fetch(`http://localhost:${PORT + 1}/api/stand`)
+      .then((a) => (a.ok ? a.json() : null))
+      .catch(() => null)
+  }
+  ok('ein zweiter Server weicht auf den nächsten Port aus', !!ausweich, `${PORT} belegt → ${PORT + 1}`)
+  zweiter.kill()
+  await warte(400)
+  ok('der erste läuft dabei weiter', !!(await hole('/api/stand').catch(() => null)), `Port ${PORT}`)
+
   // Eigene Änderungen dürfen nicht überfahren werden.
   const p2 = path.join(arbeit, 'package.json')
   fs.writeFileSync(p2, fs.readFileSync(p2, 'utf8').replace(/"version": "[^"]*"/, '"version": "99.1.0"'))

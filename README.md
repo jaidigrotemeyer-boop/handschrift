@@ -46,10 +46,28 @@ git clone https://github.com/jaidigrotemeyer-boop/handschrift.git ~/handschrift
 cd ~/handschrift && npm start
 ```
 
-Dann `http://localhost:3018` öffnen. Nur dein Rechner kommt dran.
+Der Browser geht von selbst auf, `http://localhost:3018`. Nur dein Rechner
+kommt dran. Ist der Port schon belegt, nimmt Handschrift den nächsten freien
+und sagt im Terminal, welchen.
 
 Alle drei Wege setzen voraus, dass das Repo auf **öffentlich** steht — bei
 privat antwortet GitHub mit 404, als gäbe es das Repo nicht.
+
+### „Die Website ist nicht erreichbar"
+
+`ERR_CONNECTION_REFUSED` heißt immer dasselbe: da läuft gerade kein Server.
+Handschrift ist kein Dienst im Hintergrund — sie läuft, solange das Terminal
+offen ist, und ist weg, wenn es zugeht. Also einmal `npm start`, und das
+Fenster stehen lassen.
+
+Wer nachsehen will, was los ist:
+
+```bash
+node hilfe.mjs
+```
+
+Ganz oben steht dann, ob überhaupt etwas antwortet, auf welchem Port, und ob
+der laufende Server dieselbe Fassung hat wie der Ordner.
 
 ## Messen
 

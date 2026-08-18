@@ -195,7 +195,9 @@ const server = http.createServer(async (req, res) => {
         spawn(process.execPath, [fileURLToPath(import.meta.url)], {
           detached: true,
           stdio: 'inherit',
-          env: process.env,
+          // Die neue Fassung soll denselben Port zurückerobern und nicht auf
+          // einen freien ausweichen — der Tab im Browser zeigt ja auf diesen.
+          env: { ...process.env, HANDSCHRIFT_NEUSTART: '1' },
         }).unref()
         server.close(() => process.exit(0))
         setTimeout(() => process.exit(0), 1500).unref()
@@ -223,23 +225,69 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
+/**
+ * Die Seite selbst aufmachen.
+ *
+ * "Die Website ist nicht erreichbar — ERR_CONNECTION_REFUSED" heißt immer
+ * dasselbe: der Server läuft nicht, oder er läuft woanders. Der Browser kann
+ * das nicht wissen, und im Terminal steht die richtige Adresse zwar da, aber
+ * eine Zeile weiter oben. Also macht Handschrift die Seite selbst auf, statt
+ * darauf zu warten, dass jemand die richtige Nummer abtippt.
+ *
+ * Nicht, wenn kein Mensch davorsitzt: bei den Proben läuft der Server ohne
+ * Terminal, und zwanzig aufspringende Fenster wären kein Fortschritt.
+ */
+function seiteOeffnen(port) {
+  if (process.env.KEIN_BROWSER || !process.stdout.isTTY) return
+  const url = `http://localhost:${port}`
+  const befehl = SYSTEM === 'darwin' ? 'open' : SYSTEM === 'win32' ? 'start' : 'xdg-open'
+  // Klappt es nicht, bleibt es dabei — die Adresse steht ja im Terminal.
+  spawn(befehl, [url], { stdio: 'ignore', detached: true, shell: SYSTEM === 'win32' }).unref()
+}
+
 // Nach einem Neustart hält der alte Prozess den Port noch einen Moment. Ohne
 // dieses Nachfassen schlüge genau der Selbst-Neustart fehl, den es einfacher
 // machen soll.
-function starten(versuche = 0) {
+//
+// Hält den Port dagegen etwas Fremdes besetzt, hilft Warten nichts: dann wird
+// der nächste genommen. Vorher endete Handschrift hier mit "Start nicht
+// möglich" — und wer danach die gewohnte Adresse aufrief, bekam die abgelehnte
+// Verbindung zu sehen, ohne einen Hinweis, woran es lag.
+// Einmal angemeldet, nicht bei jedem Versuch: sonst sammeln sich die Horcher
+// über die Versuche hinweg an, und beim Erfolg meldet sich der erste von
+// ihnen — mit dem Port des ersten Versuchs. Auf dem Bildschirm stand dann eine
+// Adresse, unter der Handschrift gerade nicht läuft.
+server.on('listening', async () => {
+  const port = server.address().port
+  console.log(`\n  Handschrift — ${standText()}`)
+  console.log(`  läuft auf http://localhost:${port}`)
+  console.log('  Nur dieser Rechner kommt dran. Beenden mit Strg+C\n')
+  seiteOeffnen(port)
+  if (istGitOrdner()) {
+    const neu = await nachsehen({ jetzt: true })
+    if (neu.da) console.log(`  ⟳ Neuere Fassung bereit (${neu.commits} Änderung(en)) — in der Oberfläche holen.\n`)
+  }
+})
+
+function starten(port = PORT, versuche = 0) {
   server.once('error', (err) => {
-    if (err.code === 'EADDRINUSE' && versuche < 12) return setTimeout(() => starten(versuche + 1), 400)
+    if (err.code === 'EADDRINUSE') {
+      // Zwei verschiedene Lagen, zwei verschiedene Antworten.
+      //
+      // Beim Selbst-Neustart hält die alte Fassung den Port noch einen Moment.
+      // Da hilft Warten, und ein anderer Port wäre sogar falsch: der offene
+      // Tab im Browser zeigt auf diesen hier.
+      if (process.env.HANDSCHRIFT_NEUSTART && versuche < 12)
+        return setTimeout(() => starten(port, versuche + 1), 400)
+      // Hält dagegen etwas Fremdes den Port, gibt es nichts abzuwarten.
+      if (!process.env.HANDSCHRIFT_NEUSTART && port < PORT + 10) {
+        console.log(`  Port ${port} ist belegt — Handschrift nimmt ${port + 1}.`)
+        return starten(port + 1, 0)
+      }
+    }
     console.error(`\n  Start nicht möglich: ${err.message}\n`)
     process.exit(1)
   })
-  server.listen(PORT, '127.0.0.1', async () => {
-    console.log(`\n  Handschrift — ${standText()}`)
-    console.log(`  läuft auf http://localhost:${PORT}`)
-    console.log('  Nur dieser Rechner kommt dran. Beenden mit Strg+C\n')
-    if (istGitOrdner()) {
-      const neu = await nachsehen({ jetzt: true })
-      if (neu.da) console.log(`  ⟳ Neuere Fassung bereit (${neu.commits} Änderung(en)) — in der Oberfläche holen.\n`)
-    }
-  })
+  server.listen(port, '127.0.0.1')
 }
 starten()
