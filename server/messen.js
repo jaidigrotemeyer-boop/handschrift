@@ -57,7 +57,11 @@ const FLOSKELN = [
   ['Hinweis-Floskel', /\b(it('s| is) (important|worth) (to note|noting|mentioning)|keep in mind that)\b/gi],
   ['Fazit-Floskel', /\b(zusammenfassend lässt sich (sagen|festhalten)|abschließend lässt sich|alles in allem|insgesamt lässt sich)\b/giu],
   ['Fazit-Floskel', /\b(in conclusion|to sum up|all in all|in summary)\b/gi],
-  ['Bedeutungs-Floskel', /\b(spielt eine (entscheidende|wichtige|zentrale|wesentliche) rolle|von (entscheidender|großer) bedeutung|ein (wesentlicher|zentraler) aspekt)\b/giu],
+  // Zwischen "spielt" und "eine Rolle" steht fast immer das Subjekt: "spielt
+  // die Digitalisierung eine entscheidende Rolle". Ohne diese Lücke im Muster
+  // rutschte genau die häufigste Form der Floskel durch.
+  ['Bedeutungs-Floskel', /\bspielt\b[^.!?]{0,40}?\beine (entscheidende|wichtige|zentrale|wesentliche) rolle\b/giu],
+  ['Bedeutungs-Floskel', /\b(von (entscheidender|großer) bedeutung|ein (wesentlicher|zentraler) aspekt)\b/giu],
   ['Bedeutungs-Floskel', /\b(plays a (crucial|vital|key|pivotal) role|a testament to|underscores the|cannot be overstated)\b/gi],
   ['Zeitgeist-Einstieg', /\b(in der heutigen (zeit|welt|gesellschaft)|in unserer (schnelllebigen|heutigen)|seit jeher|schon immer war)\b/giu],
   ['Zeitgeist-Einstieg', /\b(in today('s)? (world|society|fast-paced)|in an era where|since the dawn of)\b/gi],
@@ -164,6 +168,10 @@ export function messen(text) {
       anzahl: treffer.length,
       proTausend: proTausend(treffer.length),
       arten: [...new Set(treffer.map((t) => t.art))],
+      // Die Fundstellen im Wortlaut. Gebraucht wird das beim Lektorieren: nur
+      // so lässt sich prüfen, ob eine Floskel wirklich verschwunden ist oder
+      // bloß eine andere an ihrer Stelle steht.
+      stellen: [...new Set(treffer.map((t) => t.stelle.toLowerCase()))],
       beispiele: treffer.slice(0, 8).map((t) => `${t.art}: „${t.stelle}"`),
     },
     anfaenge: anfaenge(liste),

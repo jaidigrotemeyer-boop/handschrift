@@ -261,6 +261,31 @@ Auf 8 GB ist `llama3.2:3b` klein — genau dafür geht das Umschreiben absatzwei
 Ein einzelner Absatz überfordert es nicht, und misslingt einer, bleibt er
 stehen, während die übrigen besser werden.
 
+Trotzdem: bei 3 Milliarden Parametern ist oft das Modell die Grenze, nicht der
+Text. Auf einem echten 8-GB-Mac kam das hier zurück und wäre früher
+durchgegangen, weil die Zahl der Floskeln von fünf auf vier gefallen war:
+
+> **In der heutigen Zeit spielt die Digitalisierung eine entscheidende Rolle**
+> für Unternehmen jeder Größe und bietet dabei neue Chancen. **Darüber hinaus**
+> wird von vielen Faktoren den Erfolg beeinflusst … **Zudem ist es wichtig zu
+> beachten**, dass …
+
+Jede beanstandete Wendung steht noch wörtlich da. Darum prüft Handschrift
+inzwischen genau das: nicht nur, ob es *weniger* Floskeln wurden, sondern ob
+die genannten wirklich verschwunden sind. Bleiben sie stehen, wird die Antwort
+verworfen und der Absatz ein zweites Mal gefragt — mit den Übeltätern im
+Auftrag.
+
+Wenn dann gar nichts durchkommt, sagt Handschrift, welches größere Modell hier
+noch hineinpasst, statt „nimm ein größeres Modell":
+
+```
+  ginge besser mit    qwen2.5:7b — folgt Anweisungen deutlich genauer:
+                      ollama pull qwen2.5:7b
+```
+
+Auf 8 GB ist das ein spürbarer Unterschied und passt gerade noch ins Budget.
+
 Sonst genügt ein Gratis-Schlüssel, einer reicht. Er liegt in
 `data/einstellungen.json` auf deinem Rechner:
 
@@ -410,7 +435,7 @@ Ein Befehl, ein Urteil. Er ruft alle fünf Proben nacheinander auf und fasst sie
 zusammen; was auf diesem Rechner nicht geht, wird übersprungen und gesagt.
 
 ```
-  ✓ Rechnen        137 von 137 in Ordnung
+  ✓ Rechnen        147 von 147 in Ordnung
   ✓ Modell         12 von 12 in Ordnung
   ✓ Oberfläche     17 von 17 in Ordnung
   ✓ Tippen         16 von 16 in Ordnung

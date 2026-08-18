@@ -103,6 +103,36 @@ export function bestesModell(modelle, budget = speicherBudget()) {
   return liste.sort((a, b) => a.size - b.size)[0].name
 }
 
+// Ein 3B-Modell schafft diese Aufgabe oft nicht. Es liefert dieselben Floskeln
+// in neuer Reihenfolge, bläht den Absatz auf oder erfindet etwas dazu — auf dem
+// Rechner des Nutzers nachgelesen. Die Tore fangen das ab, aber dann bleibt der
+// Absatz eben stehen, und das ist auch keine Lösung.
+//
+// Größen wie bei Ollama angegeben. Sie sind grob; es geht darum, ob überhaupt
+// etwas Besseres in den Speicher passt.
+const BESSER = [
+  { name: 'qwen2.5:7b', size: 4.7e9, warum: 'folgt Anweisungen deutlich genauer' },
+  { name: 'llama3.1:8b', size: 4.9e9, warum: 'gutes Deutsch, etwas größer' },
+  { name: 'gemma2:9b', size: 5.4e9, warum: 'sehr ordentliches Deutsch' },
+  { name: 'qwen2.5:14b', size: 9.0e9, warum: 'merklich besser, braucht aber Platz' },
+]
+
+/**
+ * Gibt es ein besseres Modell, das hier noch hineinpasst?
+ *
+ * Nur zum Vorschlagen — geladen wird nichts von selbst. Es ist die Leitung und
+ * die Festplatte des Nutzers.
+ */
+export function modellVorschlag(vorhandene = [], budget = speicherBudget()) {
+  const daten = (vorhandene || []).map((m) => (typeof m === 'string' ? m : m.name))
+  const jetzt = bestesModell(vorhandene, budget)
+  const jetztGross = jetzt ? (vorhandene.find((m) => (m.name || m) === jetzt)?.size ?? ausNamen(jetzt)) : 0
+  const passt = BESSER.filter(
+    (m) => m.size <= budget && m.size > jetztGross && !daten.some((n) => String(n).startsWith(m.name)),
+  )
+  return passt.sort((a, b) => b.size - a.size)[0] || null
+}
+
 async function ollama(nachrichten, signal) {
   const c = lesen()
   const modell = c.ollamaModell || bestesModell((await ollamaDa())?.modelle || []) || 'llama3.2:3b'
@@ -531,11 +561,19 @@ export async function umschreiben(text, { ton, extra, signal, versucheJeBlock = 
   const nachher = { ...messen(neu), art: textArt(neu) }
   const punkte = { vorher: bewertung(vorher), nachher: bewertung(nachher) }
 
-  if (!lektoriert)
+  if (!lektoriert) {
+    // Statt "nimm ein größeres Modell" der Name eines, das hier hineinpasst.
+    // Der Rat, der nicht sagt was, ist kein Rat.
+    const rat = await ollamaDa()
+      .then((o) => (o ? modellVorschlag(o.modelle) : null))
+      .catch(() => null)
     throw new Error(
       `Kein Absatz wurde besser. Häufigster Grund: ${behalten[0] || 'unbekannt'}. ` +
-        'Ein größeres Modell hilft hier mehr als noch ein Versuch.',
+        (rat
+          ? `Das ist meist das Modell, nicht der Text — ${rat.name} ${rat.warum} und passt hier noch hinein: ollama pull ${rat.name}`
+          : 'Ein größeres Modell hilft hier mehr als noch ein Versuch.'),
     )
+  }
 
   return {
     text: neu,
@@ -621,6 +659,21 @@ function blockPruefen(original, neu, vorBlock) {
   // der Absatz umformuliert, nicht lektoriert — egal was die Punkte sagen.
   if (vorBlock.floskeln.anzahl > 0 && nachBlock.floskeln.anzahl >= vorBlock.floskeln.anzahl)
     return `Floskeln nicht weniger geworden (${vorBlock.floskeln.anzahl} → ${nachBlock.floskeln.anzahl})`
+
+  // Und die genannten müssen weg sein, nicht bloß gezählt worden sein.
+  //
+  // Auf einem echten Rechner kam das hier zurück und wurde angenommen, weil die
+  // Zahl von fünf auf vier gefallen war:
+  //
+  //   "In der heutigen Zeit spielt die Digitalisierung eine entscheidende
+  //    Rolle … Darüber hinaus … Zudem ist es wichtig zu beachten, dass …"
+  //
+  // Jede beanstandete Wendung stand noch wörtlich da. Gezählt wurde eine
+  // Verbesserung, gelesen hatte sich nichts geändert.
+  const klein = neu.toLowerCase()
+  const ueberlebt = (vorBlock.floskeln.stellen || []).filter((s) => klein.includes(s))
+  if (ueberlebt.length)
+    return `diese Floskeln stehen noch wörtlich da: ${ueberlebt.slice(0, 3).map((s) => `„${s}"`).join(', ')}`
   if (bewertung(nachBlock) > bewertung(vorBlock)) return 'wurde messbar schlechter'
   return null
 }

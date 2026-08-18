@@ -14,7 +14,7 @@ import { promisify } from 'node:util'
 import { messen } from './server/messen.js'
 import { bloecke, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren } from './server/entwirren.js'
-import { anbieter, ollamaDa, bestesModell, speicherBudget, umschreiben } from './server/gehirn.js'
+import { anbieter, ollamaDa, bestesModell, speicherBudget, modellVorschlag, umschreiben } from './server/gehirn.js'
 import { bereit, tippProbe, sondertastenFinden, tippWege } from './server/schreiben.js'
 import { stand, standText } from './server/stand.js'
 import { lesen } from './server/config.js'
@@ -81,6 +81,8 @@ if (o) {
   )
   zeile('gewählt', bestesModell(o.modelle) || '—')
   if (lesen().ollamaModell) zeile('fest eingestellt', lesen().ollamaModell)
+  const rat = modellVorschlag(o.modelle)
+  if (rat) zeile('ginge besser mit', `${rat.name} — ${rat.warum}:  ollama pull ${rat.name}`)
 } else {
   zeile('Ollama', 'nicht erreichbar — läuft "ollama serve"?')
 }

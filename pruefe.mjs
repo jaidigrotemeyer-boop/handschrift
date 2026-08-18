@@ -3,7 +3,7 @@
 import { messen } from './server/messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './server/tippen.js'
 import { bereit, cliclickBefehl, leerWeg, umbruchWeg, LEER_REIHE, LEER_WEGE, UMBRUCH_REIHE, UMBRUCH_WEGE, tippWege, tastenName, SYSTEM } from './server/schreiben.js'
-import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget, netzKlartext } from './server/gehirn.js'
+import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget, modellVorschlag, netzKlartext } from './server/gehirn.js'
 import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren, gliedern } from './server/entwirren.js'
 
@@ -415,6 +415,51 @@ pruefe('der Name ist immer vier Stellen lang', ['ü', 'é', '„'].every((z) => 
     SYSTEM === 'darwin' || !macSache.test(Object.values(w).join(' ')),
     SYSTEM,
   )
+}
+
+console.log('\n  FLOSKELN MÜSSEN WIRKLICH WEG')
+// Auf einem echten Rechner angenommen worden, weil die Zahl von fünf auf vier
+// gefallen war — obwohl jede beanstandete Wendung noch wörtlich dastand.
+{
+  const VORHER =
+    'In der heutigen Zeit spielt die Digitalisierung eine entscheidende Rolle für Unternehmen jeder Größe. ' +
+    'Darüber hinaus ist es wichtig zu beachten, dass eine Vielzahl von Faktoren den Erfolg beeinflusst. ' +
+    'Zudem bietet moderne Technologie eine breite Palette an neuen Möglichkeiten für Firmen.'
+  const GESCHUMMELT =
+    'In der heutigen Zeit spielt die Digitalisierung eine entscheidende Rolle für Unternehmen jeder Größe und bietet dabei neue Chancen. ' +
+    'Darüber hinaus wird von vielen Faktoren den Erfolg beeinflusst, wobei manche davon bekannter werden. ' +
+    'Zudem ist es wichtig zu beachten, dass moderne Technologie die Möglichkeiten erweitert.'
+
+  const m = messen(VORHER)
+  pruefe('die Fundstellen stehen im Wortlaut da', m.floskeln.stellen.includes('in der heutigen zeit'), m.floskeln.stellen.slice(0, 3).join(' · '))
+  // "spielt die Digitalisierung eine entscheidende Rolle" — mit dem Subjekt
+  // dazwischen. Ohne Lücke im Muster rutschte die häufigste Form durch.
+  pruefe('das Subjekt in der Mitte tarnt die Floskel nicht mehr', m.floskeln.stellen.some((s) => s.startsWith('spielt die digitalisierung')))
+  pruefe('weniger Floskeln allein genügt nicht', messen(GESCHUMMELT).floskeln.anzahl < m.floskeln.anzahl, `${m.floskeln.anzahl} → ${messen(GESCHUMMELT).floskeln.anzahl}`)
+
+  // Nichts wird angenommen, also bricht das Umschreiben ab — mit dem Grund.
+  const raus = await umschreiben(VORHER, { fragen: async () => GESCHUMMELT, versucheJeBlock: 1 }).then(
+    (r) => 'angenommen: ' + r.absaetze.behalten.join(' · '),
+    (err) => err.message,
+  )
+  pruefe('trotzdem wird abgelehnt', /wörtlich/.test(raus), raus.slice(0, 80))
+  pruefe('und die Übeltäter werden benannt', /heutigen zeit/.test(raus))
+}
+
+console.log('\n  RAT ZUM MODELL')
+// "Nimm ein größeres Modell" ist kein Rat, solange nicht dasteht welches.
+{
+  const SEINE = [
+    { name: 'moondream:latest', size: 1.7e9 },
+    { name: 'nomic-embed-text:latest', size: 0.3e9 },
+    { name: 'llama3.2:3b', size: 2.0e9 },
+  ]
+  const acht = modellVorschlag(SEINE, speicherBudget(8.6e9))
+  pruefe('auf 8 GB wird etwas Passendes genannt', !!acht && acht.size <= speicherBudget(8.6e9), acht?.name)
+  pruefe('und es ist größer als das jetzige', acht?.size > 2.0e9)
+  pruefe('auf 16 GB darf es mehr sein', modellVorschlag(SEINE, speicherBudget(16e9))?.size > acht?.size)
+  pruefe('was schon da ist, wird nicht vorgeschlagen', modellVorschlag([...SEINE, { name: acht.name, size: acht.size }], speicherBudget(8.6e9)) === null)
+  pruefe('auf einem winzigen Rechner gibt es keinen Rat', modellVorschlag(SEINE, 1e9) === null)
 }
 
 console.log('\n  MELDUNGEN, WENN ES KLEMMT')
