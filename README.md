@@ -271,11 +271,25 @@ Ergebnis, und die wäre erfunden. Dafür ist Handschrift nicht gebaut.
 kommt kein Zeichen an. Schneller tippt es mit `brew install cliclick`.
 **Windows** tippt über PowerShell, **Linux** über `xdotool`.
 
-Leerzeichen, Tabulator und Zeilenumbruch bekommen auf dem Mac eigene Tasten
-(`kp:space`, `kp:tab`, `kp:return`) statt über `t:` zu gehen. Der Grund ist
-unscheinbar und die Wirkung nicht: `t:` schneidet Leerraum am Rand ab, und ein
-einzelnes Leerzeichen ist nur Rand. Es fiel weg, und im Dokument stand
-`Erstezeilehier`.
+### Das Leerzeichen auf dem Mac
+
+Der wunde Punkt, zweimal falsch geraten und dann nachgemessen.
+
+`cliclick t: ` übergibt ein Leerzeichen am Rand, und Rand wird abgeschnitten —
+im Dokument stand `Erstezeilehier`. Der naheliegende Ersatz `kp:space` tat auf
+einem echten Rechner gar nichts: **0 von 3 Leerzeichen kamen an.**
+
+Darum gibt es jetzt vier Wege und eine Probe, die herausfindet, welcher hier
+wirklich schreibt:
+
+```bash
+node hilfe.mjs --tippen
+```
+
+TextEdit geht kurz auf, jeder Weg wird einzeln versucht, der erste
+funktionierende landet in den Einstellungen. Ab dann tippt Handschrift damit.
+
+Tabulator und Zeilenumbruch gehen weiter über `kp:tab` und `kp:return`.
 
 Hat der Text gar keine Absätze, sagt Handschrift das vor dem Tippen — sonst
 landet er auch ohne Absätze im Dokument, und das merkt man erst hinterher. Ein

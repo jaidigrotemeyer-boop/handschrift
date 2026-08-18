@@ -176,7 +176,12 @@ export function bewertung(m) {
   if (!m.satz.anzahl) return 0
   const gleichmassStrafe = Math.max(0, 0.35 - m.satz.gleichmass) * 100
   const mittelbauStrafe = Math.max(0, m.mittelbauProzent - 60) * 0.4
-  return +(m.auffaellig.length * 6 + m.floskeln.proTausend * 1.5 + gleichmassStrafe + mittelbauStrafe).toFixed(1)
+  // Die Rate allein war angreifbar: dieselben fünf Floskeln auf 61 % mehr
+  // Wörter verteilt ergaben 122 statt 75 je 1000 — die Punkte fielen von 231
+  // auf 144, obwohl keine einzige Floskel verschwunden war. Ein kleines Modell
+  // findet diesen Weg von selbst. Darum zählt die schiere Anzahl mit.
+  const floskelStrafe = m.floskeln.anzahl * 4 + m.floskeln.proTausend * 0.8
+  return +(m.auffaellig.length * 6 + floskelStrafe + gleichmassStrafe + mittelbauStrafe).toFixed(1)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -566,7 +571,10 @@ function blockPruefen(original, neu, vorBlock) {
   // für Unternehmen jeder Größe" wird zu "Digitalisierung trifft jede Firma".
   // Eine Grenze bei 60 % hätte genau das verworfen, wofür es das Werkzeug gibt.
   if (anteil < 0.45) return `nur noch ${Math.round(anteil * 100)} % der Länge`
-  if (anteil > 1.7) return `auf ${Math.round(anteil * 100)} % aufgebläht`
+  // Nach oben eng: Lektorieren macht Text nicht länger. 170 % ließ eine Fassung
+  // durch, die bei 161 % lag und nichts weiter tat, als die Floskeln zu
+  // umschreiben und Füllsel dazwischen zu setzen.
+  if (anteil > 1.25) return `auf ${Math.round(anteil * 100)} % aufgebläht`
 
   // Länge allein trennt Kürzen nicht von Zusammenfassen — Zahlen tun es. Wer
   // eine Jahreszahl oder eine Menge wegwirft, hat zusammengefasst.
@@ -584,6 +592,10 @@ function blockPruefen(original, neu, vorBlock) {
   if (neu.trim() === original.trim()) return 'unverändert zurückgegeben'
 
   const nachBlock = messen(neu)
+  // Der eigentliche Auftrag lautet: Floskeln raus. Bleiben es gleich viele, ist
+  // der Absatz umformuliert, nicht lektoriert — egal was die Punkte sagen.
+  if (vorBlock.floskeln.anzahl > 0 && nachBlock.floskeln.anzahl >= vorBlock.floskeln.anzahl)
+    return `Floskeln nicht weniger geworden (${vorBlock.floskeln.anzahl} → ${nachBlock.floskeln.anzahl})`
   if (bewertung(nachBlock) > bewertung(vorBlock)) return 'wurde messbar schlechter'
   return null
 }

@@ -2,7 +2,7 @@
 //   node pruefe.mjs
 import { messen } from './server/messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './server/tippen.js'
-import { bereit, cliclickBefehl } from './server/schreiben.js'
+import { bereit, cliclickBefehl, leerWeg, LEER_REIHE, LEER_WEGE } from './server/schreiben.js'
 import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget } from './server/gehirn.js'
 import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
 import { istVerklebt, entwirren } from './server/entwirren.js'
@@ -339,18 +339,18 @@ console.log('\n  AUSDAUER')
 }
 
 console.log('\n  TASTEN AUF DEM MAC')
-// "t: " übergibt cliclick ein Leerzeichen am Rand — und Rand wird abgeschnitten.
-// Genau daran klebte der getippte Text zusammen.
-pruefe('Leerzeichen bekommt eine eigene Taste', cliclickBefehl(' ') === 'kp:space')
-pruefe('Zeilenumbruch ebenso', cliclickBefehl('\n') === 'kp:return')
+// Auf einem echten Rechner gemessen: "t: " verliert das Leerzeichen (Rand wird
+// abgeschnitten), und "kp:space" schrieb gar nichts — 0 von 3 kamen an. Darum
+// geht das Leerzeichen einen eigenen Weg und nie über cliclickBefehl.
+pruefe('Leerzeichen läuft nicht über cliclick t:', leerWeg() !== 'cliclick-t')
+pruefe('für das Leerzeichen gibt es mehrere Wege', LEER_REIHE.length >= 3, LEER_REIHE.join(', '))
+pruefe('jeder Weg ist auch hinterlegt', LEER_REIHE.every((n) => typeof LEER_WEGE[n] === 'function'))
+pruefe('AppleScript steht vorn', LEER_REIHE[0].startsWith('applescript'), LEER_REIHE[0])
+pruefe('Zeilenumbruch über kp:return', cliclickBefehl('\n') === 'kp:return')
 pruefe('Wagenrücklauf ebenso', cliclickBefehl('\r') === 'kp:return')
-pruefe('Tabulator ebenso', cliclickBefehl('\t') === 'kp:tab')
+pruefe('Tabulator über kp:tab', cliclickBefehl('\t') === 'kp:tab')
 for (const z of ['H', 'a', '.', 'ä', '-', ':', '/'])
   pruefe(`"${z}" wird normal getippt`, cliclickBefehl(z) === 't:' + z)
-pruefe(
-  'ein ganzes Wort ergibt lauter einzelne Befehle',
-  [...'Ha lo'].map(cliclickBefehl).join(' ') === 't:H t:a kp:space t:l t:o',
-)
 
 console.log('\n  SYSTEM')
 const b = await bereit()

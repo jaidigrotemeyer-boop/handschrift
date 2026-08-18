@@ -15,6 +15,7 @@ const STANDARD = {
   openrouterKey: '',
   cerebrasKey: '',
   ollamaModell: '',
+  leerzeichenWeg: '', // welcher Weg auf diesem Mac ein Leerzeichen schreibt
   ton: '',
   zeichenProMinute: 260,
   vorlauf: 5, // Sekunden bis zum ersten Anschlag — Zeit, ins Zielfenster zu klicken
@@ -43,6 +44,7 @@ export function oeffentlich() {
   return {
     ton: c.ton,
     ollamaModell: c.ollamaModell,
+    leerzeichenWeg: c.leerzeichenWeg,
     zeichenProMinute: c.zeichenProMinute,
     vorlauf: c.vorlauf,
     schluessel: {
