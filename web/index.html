@@ -236,6 +236,30 @@ function befundZeigen(m, art) {
       </div>
       ${punkte.length ? `<ul class="funde">${punkte.join('')}</ul>` : ''}
     </details>`
+
+  // Der Befund wird bei jedem Messen neu gebaut, der Knopf darin also auch.
+  // Darum wird er hier gebunden und nicht einmalig beim Start — genau das war
+  // vorher der Fehler: der Knopf war da, tat aber nichts.
+  const knopf = $('entwirren')
+  if (knopf)
+    knopf.onclick = async () => {
+      knopf.disabled = true
+      knopf.textContent = 'Trennt auf …'
+      try {
+        const r = await hole('/api/entwirren', { text: $('text').value })
+        $('text').value = r.text
+        $('text').dispatchEvent(new Event('input'))
+        befundZeigen(r, r.art)
+        $('befund').insertAdjacentHTML(
+          'afterbegin',
+          `<p class="leise" style="margin:.9rem 0 0">${r.schnitte} Klebestellen aufgetrennt.</p>`,
+        )
+      } catch (e) {
+        knopf.disabled = false
+        knopf.textContent = 'Absätze wiederherstellen'
+        knopf.insertAdjacentHTML('afterend', `<p class="fehler">${sicher(e.message)}</p>`)
+      }
+    }
 }
 
 $('messen').onclick = async () => {

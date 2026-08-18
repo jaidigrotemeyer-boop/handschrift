@@ -167,6 +167,29 @@ pruefe('teilweiser Erfolg zählt', teils.absaetze.lektoriert === 1 && teils.absa
 pruefe('Ausfall wird durchgereicht',
   await umschreiben(FLACH, { fragen: async () => { throw new Error('kein Netz') } }).then(() => false, (e) => /kein Netz/.test(e.message)))
 
+// Ehrliches Entfloskeln kürzt kräftig — das darf nicht als Zusammenfassen gelten.
+{
+  const lang = 'In der heutigen Zeit spielt die Digitalisierung eine entscheidende Rolle für Unternehmen jeder Größe.'
+  const knapp = await umschreiben(lang, { fragen: async () => 'Digitalisierung trifft jede Firma, große wie kleine.' })
+  pruefe('starkes Kürzen ist erlaubt', knapp.absaetze.lektoriert === 1, `${knapp.punkte.vorher} → ${knapp.punkte.nachher} Punkte`)
+}
+// Aber eine verlorene Zahl heißt: zusammengefasst, nicht lektoriert.
+{
+  const mitZahl = 'Im Jahr 2026 stiegen die Kosten der Abteilung um 17 Prozent, was viele Beteiligte damals ehrlich überraschte.'
+  let raus = null
+  try {
+    await umschreiben(mitZahl, { fragen: async () => 'Die Kosten der Abteilung stiegen damals kräftig und überraschten viele Beteiligte.' })
+  } catch (err) {
+    raus = err.message
+  }
+  pruefe('verlorene Zahl fliegt auf', /Zahl verloren/.test(raus || ''), raus?.slice(0, 60))
+}
+{
+  const mitZahl = 'Im Jahr 2026 stiegen die Kosten um 17 Prozent, was damals viele Beteiligte im Haus ehrlich überraschte.'
+  const gut = await umschreiben(mitZahl, { fragen: async () => '2026 stiegen die Kosten um 17 Prozent. Das überraschte viele im Haus.' })
+  pruefe('erhaltene Zahlen sind in Ordnung', gut.absaetze.lektoriert === 1)
+}
+
 console.log('\n  BLÖCKE')
 {
   const b = bloecke(GEMISCHT)

@@ -561,8 +561,18 @@ function blockPruefen(original, neu, vorBlock) {
 
   const zaehl = (t) => (t.match(/\S+/g) || []).length
   const anteil = zaehl(neu) / Math.max(1, zaehl(original))
-  if (anteil < 0.6) return `nur noch ${Math.round(anteil * 100)} % der Länge`
+  // Gemessen an echten Beispielen kürzt ehrliches Entfloskeln auf 33–58 %:
+  // "In der heutigen Zeit spielt die Digitalisierung eine entscheidende Rolle
+  // für Unternehmen jeder Größe" wird zu "Digitalisierung trifft jede Firma".
+  // Eine Grenze bei 60 % hätte genau das verworfen, wofür es das Werkzeug gibt.
+  if (anteil < 0.45) return `nur noch ${Math.round(anteil * 100)} % der Länge`
   if (anteil > 1.7) return `auf ${Math.round(anteil * 100)} % aufgebläht`
+
+  // Länge allein trennt Kürzen nicht von Zusammenfassen — Zahlen tun es. Wer
+  // eine Jahreszahl oder eine Menge wegwirft, hat zusammengefasst.
+  const zahlen = (t) => new Set((t.match(/\d[\d.,]*/g) || []).map((z) => z.replace(/[.,]$/, '')))
+  const weg = [...zahlen(original)].filter((z) => !zahlen(neu).has(z))
+  if (weg.length) return `Zahl verloren: ${weg.slice(0, 3).join(', ')}`
 
   const a = sprache(original)
   const b = sprache(neu)

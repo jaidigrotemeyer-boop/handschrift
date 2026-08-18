@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node server/index.js",
     "pruefe": "node pruefe.mjs",
+    "pruefe:browser": "node pruefe-browser.mjs",
     "messen": "node messen.mjs"
   }
 }
