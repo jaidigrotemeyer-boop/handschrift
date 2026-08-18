@@ -44,6 +44,55 @@ const REGELN = [
   [new RegExp(`([${KLEIN}])([${GROSS}][${KLEIN}]+\\s[${KLEIN}]+[^.]{5,}?\\.)`, 'g'), '$1\n$2'],
 ]
 
+// ────────────────────────────────────────────────────────────────────────────
+// Formelreste
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Wer aus einem gesetzten Dokument kopiert, bekommt manchmal die Rohform der
+// Formeln mit:
+//
+//   Right atrium $\rightarrow$ tricuspid $\rightarrow$ right ventricle
+//
+// Gemeint war ein Pfeil. Im Browser sieht man ihn, in der Zwischenablage steht
+// die Anweisung, ihn zu setzen. Getippt landet dieser Satz genau so im
+// Dokument — Dollarzeichen und Backslash inklusive.
+const ZEICHEN = {
+  rightarrow: '→', to: '→', longrightarrow: '→', Rightarrow: '⇒', implies: '⇒',
+  leftarrow: '←', gets: '←', Leftarrow: '⇐', leftrightarrow: '↔', Leftrightarrow: '⇔',
+  uparrow: '↑', downarrow: '↓',
+  times: '×', cdot: '·', div: '÷', pm: '±', mp: '∓',
+  leq: '≤', le: '≤', geq: '≥', ge: '≥', neq: '≠', ne: '≠', approx: '≈', equiv: '≡',
+  infty: '∞', degree: '°', circ: '°', percent: '%',
+  alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', Delta: 'Δ', mu: 'µ', pi: 'π',
+  sigma: 'σ', Sigma: 'Σ', omega: 'ω', Omega: 'Ω', lambda: 'λ', theta: 'θ',
+}
+
+// Nur wenn zwischen den Dollarzeichen ausschließlich solche Befehle stehen.
+// "$50 Millionen" ist Geld und bleibt, wie es ist — das wäre der teuerste Weg,
+// hilfsbereit zu sein.
+const FORMEL = /\$\s*((?:\\[a-zA-Z]+\s*)+)\$/g
+const einBefehl = /\\([a-zA-Z]+)/g
+
+/**
+ * Steht in diesem Text so ein Formelrest — einer, den Handschrift auch auflösen
+ * kann? Gefragt wird, ob sich etwas ändern würde. Ein "$\foobar$", das ohnehin
+ * stehen bliebe, ist kein Grund, einen Knopf anzubieten.
+ */
+export const hatFormelreste = (text) => latexEntschaerfen(text) !== String(text || '')
+
+/**
+ * Die Formelreste durch das Zeichen ersetzen, das gemeint war. Was nicht in
+ * der Liste steht, bleibt unangetastet — ein falsch geratenes Sonderzeichen
+ * wäre schlimmer als ein stehengebliebenes Dollarzeichen.
+ */
+export function latexEntschaerfen(text) {
+  return String(text || '').replace(FORMEL, (ganz, inhalt) => {
+    const teile = [...inhalt.matchAll(einBefehl)].map((m) => m[1])
+    if (!teile.every((name) => ZEICHEN[name])) return ganz
+    return teile.map((name) => ZEICHEN[name]).join(' ')
+  })
+}
+
 const zaehle = (t, muster) => (t.match(muster) || []).length
 
 /**
@@ -64,7 +113,9 @@ export function istVerklebt(text) {
 
 /** Die Klebestellen auftrennen. Gibt den Text und die Zahl der Schnitte zurück. */
 export function entwirren(text) {
-  let t = String(text || '').replace(/\r\n?/g, '\n')
+  const roh = String(text || '').replace(/\r\n?/g, '\n')
+  let t = latexEntschaerfen(roh)
+  const formeln = zaehle(roh, FORMEL) - zaehle(t, FORMEL)
   const vorher = t.length
   for (const [muster, ersatz] of REGELN) t = t.replace(muster, ersatz)
   t = t
@@ -74,7 +125,7 @@ export function entwirren(text) {
   const schnitte = Math.max(0, t.length - vorher)
   // Trennen holt die Zeilen zurück, gliedern die Form: Überschriften,
   // Aufzählungen, nummerierte Schritte.
-  return { text: gliedern(t), schnitte }
+  return { text: gliedern(t), schnitte, formeln: Math.max(0, formeln) }
 }
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -227,10 +227,18 @@ function befundZeigen(m, art) {
 
   // Verklebter Text zuerst: solange die Absätze fehlen, sind alle anderen
   // Zahlen wertlos — der ganze Text gilt dann als ein einziger Absatz.
-  const klumpen = m.verklebt
-    ? `<div class="klumpen">Dieser Text hat beim Kopieren seine Absätze verloren — Überschriften und Sätze kleben aneinander.
-         <button id="entwirren">Absätze wiederherstellen</button></div>`
-    : ''
+  // Formelreste sind derselbe Kopierschaden, nur an anderer Stelle: aus einem
+  // Pfeil wurde "$\rightarrow$". Auch das lässt sich aufräumen, und zwar mit
+  // demselben Knopf.
+  const klumpen =
+    m.verklebt || m.formelreste
+      ? `<div class="klumpen">${
+          m.verklebt
+            ? 'Dieser Text hat beim Kopieren seine Absätze verloren — Überschriften und Sätze kleben aneinander.'
+            : 'In diesem Text stehen Formelreste aus dem Kopieren, etwa <code>$\\rightarrow$</code> statt <code>→</code>.'
+        }
+         <button id="entwirren">${m.verklebt ? 'Absätze wiederherstellen' : 'Formelreste aufräumen'}</button></div>`
+      : ''
 
   $('befund').innerHTML = `
     ${klumpen}
@@ -251,25 +259,32 @@ function befundZeigen(m, art) {
   // Darum wird er hier gebunden und nicht einmalig beim Start — genau das war
   // vorher der Fehler: der Knopf war da, tat aber nichts.
   const knopf = $('entwirren')
-  if (knopf)
+  if (knopf) {
+    const beschriftung = knopf.textContent
     knopf.onclick = async () => {
       knopf.disabled = true
-      knopf.textContent = 'Trennt auf …'
+      knopf.textContent = 'Räumt auf …'
       try {
         const r = await hole('/api/entwirren', { text: $('text').value })
         $('text').value = r.text
         $('text').dispatchEvent(new Event('input'))
         befundZeigen(r, r.art)
-        $('befund').insertAdjacentHTML(
-          'afterbegin',
-          `<p class="leise" style="margin:.9rem 0 0">${r.schnitte} Klebestellen aufgetrennt.</p>`,
-        )
+        const getan = [
+          r.schnitte ? `${r.schnitte} Klebestellen aufgetrennt` : '',
+          r.formeln ? `${r.formeln} Formelreste ersetzt` : '',
+        ].filter(Boolean)
+        if (getan.length)
+          $('befund').insertAdjacentHTML(
+            'afterbegin',
+            `<p class="leise" style="margin:.9rem 0 0">${getan.join(' · ')}.</p>`,
+          )
       } catch (e) {
         knopf.disabled = false
-        knopf.textContent = 'Absätze wiederherstellen'
+        knopf.textContent = beschriftung
         knopf.insertAdjacentHTML('afterend', `<p class="fehler">${sicher(e.message)}</p>`)
       }
     }
+  }
 }
 
 $('messen').onclick = async () => {

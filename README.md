@@ -169,6 +169,27 @@ Liste, die es nicht gibt. Nummeriert wird nur, was hinter einem Doppelpunkt
 ohne eigenen Inhalt steht. Kein Buchstabe geht verloren, und ein zweiter Klick
 ändert nichts mehr.
 
+### Formelreste
+
+Aus einem gesetzten Dokument kopiert kommt manchmal die Rohform der Formeln mit:
+
+```
+Blood path: Right atrium $\rightarrow$ tricuspid $\rightarrow$ right ventricle
+```
+
+Gemeint war ein Pfeil. Im Browser sieht man ihn, in der Zwischenablage steht die
+Anweisung, ihn zu setzen — und getippt landet der Satz genau so im Dokument,
+Dollarzeichen und Backslash inklusive. Derselbe Knopf räumt das mit auf:
+
+```
+Blood path: Right atrium → tricuspid → right ventricle
+```
+
+Ersetzt wird nur, was eindeutig ist: Pfeile, Rechenzeichen, griechische
+Buchstaben. Was nicht in der Liste steht, bleibt stehen — ein falsch geratenes
+Sonderzeichen wäre schlimmer als ein übriggebliebenes Dollarzeichen. Und
+`$50 Millionen` ist Geld und bleibt Geld.
+
 Der Knopf erscheint nur, wenn es wirklich danach aussieht — und er drückt sich
 nicht von selbst. Es ist dein Text.
 
@@ -435,9 +456,9 @@ Ein Befehl, ein Urteil. Er ruft alle fünf Proben nacheinander auf und fasst sie
 zusammen; was auf diesem Rechner nicht geht, wird übersprungen und gesagt.
 
 ```
-  ✓ Rechnen        147 von 147 in Ordnung
+  ✓ Rechnen        161 von 161 in Ordnung
   ✓ Modell         12 von 12 in Ordnung
-  ✓ Oberfläche     17 von 17 in Ordnung
+  ✓ Oberfläche     22 von 22 in Ordnung
   ✓ Tippen         16 von 16 in Ordnung
   ✓ Aktualisieren  10 von 10 in Ordnung
 ```

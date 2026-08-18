@@ -121,6 +121,29 @@ try {
     ok('die Titelzeile bleibt schmucklos', zeilen[0] === 'Laboratory Report: Heart Dissection')
   }
 
+  console.log('\n  FORMELRESTE')
+  // Derselbe Knopf, anderer Anlass — und derselbe Fallstrick: sichtbar sein
+  // heißt nicht, etwas zu tun.
+  await seite.fill(
+    '#text',
+    'Der Weg des Blutes ist festgelegt und läuft immer in dieselbe Richtung durch das Herz. ' +
+      'Blood path: Right atrium $\\rightarrow$ tricuspid $\\rightarrow$ right ventricle $\\rightarrow$ lungs. ' +
+      'Die Klappen sorgen dafür, dass nichts zurückfließt, und zwar bei jedem einzelnen Schlag.',
+  )
+  await seite.click('#messen')
+  await warte(800)
+  const formelKnopf = seite.locator('#entwirren')
+  ok('Handschrift bietet das Aufräumen an', (await formelKnopf.count()) > 0)
+  if (await formelKnopf.count()) {
+    ok('und nennt es beim Namen', /Formelreste/.test((await formelKnopf.textContent()) || ''), await formelKnopf.textContent())
+    await formelKnopf.click()
+    await warte(1000)
+    const danach = await seite.inputValue('#text')
+    ok('die Pfeile stehen als Pfeile da', danach.includes('atrium → tricuspid'), danach.slice(40, 90))
+    ok('kein Dollarzeichen bleibt übrig', !danach.includes('$'))
+    ok('gemeldet wird, was getan wurde', /Formelreste ersetzt/.test((await seite.locator('#befund').textContent()) || ''))
+  }
+
   console.log('\n  TIPPEN')
   await seite.fill('#text', FLACH)
   await seite.locator('#regler').fill('500')

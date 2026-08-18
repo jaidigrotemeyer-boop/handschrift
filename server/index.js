@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { messen } from './messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './tippen.js'
 import { umschreiben, anbieter, textArt } from './gehirn.js'
-import { istVerklebt, entwirren } from './entwirren.js'
+import { istVerklebt, entwirren, hatFormelreste } from './entwirren.js'
 import { stand as fassung, standText } from './stand.js'
 import { nachsehen, holen, istGitOrdner } from './aktualisieren.js'
 import { spawn } from 'node:child_process'
@@ -164,13 +164,13 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST' && weg === '/api/messen') {
       const roh = String((await koerper(req)).text || '')
-      return json(res, 200, { ...messen(roh), art: textArt(roh), verklebt: istVerklebt(roh) })
+      return json(res, 200, { ...messen(roh), art: textArt(roh), verklebt: istVerklebt(roh), formelreste: hatFormelreste(roh) })
     }
 
     if (req.method === 'POST' && weg === '/api/entwirren') {
       const roh = String((await koerper(req)).text || '')
       const r = entwirren(roh)
-      return json(res, 200, { ...r, ...messen(r.text), art: textArt(r.text), verklebt: istVerklebt(r.text) })
+      return json(res, 200, { ...r, ...messen(r.text), art: textArt(r.text), verklebt: istVerklebt(r.text), formelreste: hatFormelreste(r.text) })
     }
 
     if (req.method === 'POST' && weg === '/api/umschreiben') {

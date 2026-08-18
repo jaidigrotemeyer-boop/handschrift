@@ -5,7 +5,7 @@ import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } 
 import { bereit, cliclickBefehl, leerWeg, umbruchWeg, LEER_REIHE, LEER_WEGE, UMBRUCH_REIHE, UMBRUCH_WEGE, tippWege, tastenName, SYSTEM } from './server/schreiben.js'
 import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget, modellVorschlag, netzKlartext } from './server/gehirn.js'
 import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
-import { istVerklebt, entwirren, gliedern } from './server/entwirren.js'
+import { istVerklebt, entwirren, gliedern, hatFormelreste, latexEntschaerfen } from './server/entwirren.js'
 
 let gut = 0
 let schlecht = 0
@@ -301,6 +301,33 @@ for (const zeile of [
   pruefe(`eigene Zeile: "${zeile.slice(0, 28)}"`, entwirrt.text.split('\n').some((z) => z.trim() === zeile))
 
 pruefe('kein Wort verloren', (entwirrt.text.match(/[A-Za-z]/g) || []).length === (KLUMPEN.match(/[A-Za-z]/g) || []).length)
+
+console.log('\n  FORMELRESTE')
+// Aus einem gesetzten Dokument kopiert kommt die Rohform der Formeln mit:
+// "Right atrium $\rightarrow$ tricuspid". Gemeint war ein Pfeil; getippt landet
+// das Dollarzeichen mit im Dokument.
+{
+  const PFEILE = '* Blood path: Right atrium $\\rightarrow$ tricuspid $\\rightarrow$ right ventricle.'
+  pruefe('ein Formelrest wird erkannt', hatFormelreste(PFEILE))
+  pruefe('und durch das Zeichen ersetzt', latexEntschaerfen(PFEILE) === '* Blood path: Right atrium → tricuspid → right ventricle.', latexEntschaerfen(PFEILE))
+  for (const [roh, soll] of [
+    ['$\\times$', '×'],
+    ['$\\pm$', '±'],
+    ['$\\leq$', '≤'],
+    ['$\\approx$', '≈'],
+    ['$\\alpha$', 'α'],
+    ['$\\Delta$', 'Δ'],
+    ['$\\alpha \\to \\beta$', 'α → β'],
+  ])
+    pruefe(`"${roh}" wird zu "${soll}"`, latexEntschaerfen(roh) === soll, latexEntschaerfen(roh))
+
+  // Der teuerste Weg, hilfsbereit zu sein, wäre Geld kaputtzumachen.
+  pruefe('Geldbeträge bleiben, wie sie sind', latexEntschaerfen('Die Firma zahlte $50 Millionen und $1.200 dazu.') === 'Die Firma zahlte $50 Millionen und $1.200 dazu.')
+  pruefe('Unbekanntes bleibt stehen', latexEntschaerfen('Rest: $\\foobar$ hier.') === 'Rest: $\\foobar$ hier.')
+  pruefe('und wird auch nicht angeboten', !hatFormelreste('Rest: $\\foobar$ hier.'))
+  pruefe('sauberer Text hat keine Reste', !hatFormelreste(FLACH))
+  pruefe('entwirren zählt die ersetzten mit', entwirren('a '.repeat(200) + PFEILE).formeln === 2)
+}
 
 console.log('\n  GLIEDERN')
 // Auftrennen holt die Zeilen zurück, gliedern die Form. Beides zusammen ist
