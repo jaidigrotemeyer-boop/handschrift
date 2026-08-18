@@ -16,6 +16,8 @@
 // Modell daheim. Darum wird der Zustand erkannt und lässt sich reparieren —
 // auf Knopfdruck, nicht heimlich: es ist der Text des Nutzers.
 
+import { saetze } from './messen.js'
+
 const GROSS = 'A-ZÄÖÜ'
 const KLEIN = 'a-zäöüß'
 
@@ -29,10 +31,12 @@ const REGELN = [
   // "Dissection1. Title Page" und "anatomy.3. Methodology" — Wort oder
   // Satzende klebt an der Abschnittsnummer.
   [new RegExp(`([${KLEIN}.!?])(\\d{1,2}\\.\\s*[${GROSS}])`, 'g'), '$1\n\n$2'],
-  // "GrotemeyerCourse:", "HeartStudent Name:", "ObservationsFigure 1:" — eine
-  // Beschriftung mit Doppelpunkt klebt am Wort davor. Ziffern gehören dazu,
-  // sonst wird aus "Figure 1:" nichts.
-  [new RegExp(`([${KLEIN}\\d])([${GROSS}][${KLEIN}]+(?:\\s[${GROSS}${KLEIN}\\d]+){0,2}:)`, 'g'), '$1\n$2'],
+  // "GrotemeyerCourse:", "HeartStudent Name:", "ObservationsFigure 1:",
+  // "AnalysisLeft vs. right wall thickness:" — eine Beschriftung mit
+  // Doppelpunkt klebt am Wort davor. Ziffern, Punkte und kaufmännisches Und
+  // gehören dazu: sonst zerbricht "Figure 1:" nicht, "vs." nicht und
+  // "Chordae tendineae & papillary muscles:" auch nicht.
+  [new RegExp(`([${KLEIN}\\d])([${GROSS}][A-Za-z${KLEIN}${GROSS}0-9 &/.-]{2,45}:)(?=\\s|$)`, 'g'), '$1\n$2'],
   // "Procedure:Examine" — nach dem Doppelpunkt fehlt jede Trennung.
   [new RegExp(`([${KLEIN}]:)([${GROSS}])`, 'g'), '$1\n$2'],
   // "ProcedureExamine" nach einem Doppelpunkt-Block: Wort klebt an einem neuen
@@ -67,7 +71,118 @@ export function entwirren(text) {
     .replace(/[ \t]+$/gm, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
-  // Jeder eingefügte Umbruch verlängert den Text um genau ein Zeichen; die
-  // Leerzeichen nach Satzzeichen zählen genauso. Das ist die Zahl der Schnitte.
-  return { text: t, schnitte: Math.max(0, t.length - vorher) }
+  const schnitte = Math.max(0, t.length - vorher)
+  // Trennen holt die Zeilen zurück, gliedern die Form: Überschriften,
+  // Aufzählungen, nummerierte Schritte.
+  return { text: gliedern(t), schnitte }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Gliedern
+// ────────────────────────────────────────────────────────────────────────────
+
+const IST_KOPF = /^\d{1,2}\.\s+\S/
+// Schon gegliedert: ein Punkt, den gliedern selbst gesetzt hat, und ein
+// eingerückter Schritt darunter. Beide müssen wiedererkannt werden, sonst
+// verschiebt ein zweiter Durchgang die Form — der eingerückte "1. Examine …"
+// sähe sonst aus wie die Überschrift eines neuen Abschnitts.
+const IST_PUNKT = /^\*\s+\S/
+const IST_SCHRITT = /^\s+\d{1,2}\.\s+\S/
+// Auch eine kurze Frage am Zeilenanfang ist eine Beschriftung: "Why animal
+// hearts? Identical structural layout …" — Frage, dann Antwort.
+const IST_LABEL = /^[A-Z](?:[^:\n]{0,40}:|[^.!?\n]{2,45}\?)(?:\s|$)/
+const IST_NUR_LABEL = /^[A-Z][^:\n]{0,40}:\s*$/
+
+/**
+ * Aus getrennten Zeilen wieder ein Dokument machen.
+ *
+ * Das Auftrennen holt die Zeilen zurück, aber nicht die Form: eine Reihe von
+ * "Titel: …", "Name: …", "Kurs: …" ist eine Aufzählung und sieht auch so aus,
+ * und was hinter einem alleinstehenden "Procedure:" folgt, sind nummerierte
+ * Schritte. Beides geht beim Kopieren als Erstes verloren.
+ *
+ * Geraten wird auch hier nicht: Aufzählungspunkt wird nur, was wie eine
+ * Beschriftung aussieht, und nummeriert nur, was hinter einem Doppelpunkt ohne
+ * eigenen Inhalt steht.
+ */
+export function gliedern(text) {
+  // "Materials: … camera. Procedure:" sind zwei Beschriftungen in einer Zeile.
+  const zeilen = String(text)
+    // Auch nach einem Satzende kann die nächste Beschriftung anschließen:
+    // "… higher pressure. Chordae tendineae & papillary muscles: …"
+    .replace(/([.!?]) ([A-ZÄÖÜ][^:\n]{2,45}:)(?=\s)/g, '$1\n$2')
+    // Manche Beschriftungen fragen statt zu benennen: "Why animal hearts?"
+    .replace(/([.!?]) ([A-ZÄÖÜ][^.!?\n]{2,45}\?)(?=\s)/g, '$1\n$2')
+    .split('\n')
+
+  // Die Einrückung eines Schritts muss erhalten bleiben; sonst wird der Text
+  // getrimmt, damit Klebereste nicht als Leerzeichen stehen bleiben.
+  const art = zeilen.map((roh) => {
+    const z = roh.trim()
+    if (!z) return 'leer'
+    if (IST_SCHRITT.test(roh)) return 'schritt'
+    if (IST_PUNKT.test(z)) return 'punkt'
+    if (IST_KOPF.test(z)) return 'kopf'
+    if (IST_NUR_LABEL.test(z)) return 'nurLabel'
+    if (IST_LABEL.test(z)) return 'label'
+    return 'text'
+  })
+  // Erst einordnen, dann entscheiden: ein Aufzählungspunkt braucht Nachbarn.
+  // Sonst würde die Titelzeile "Laboratory Report: Heart Dissection" — eine
+  // Beschriftung wie jede andere — zum ersten Punkt einer Liste, die es nicht
+  // gibt.
+  const inReihe = art.map((a, i) => {
+    if (a === 'punkt') return true
+    if (a !== 'label' && a !== 'nurLabel') return false
+    const nachbar = (j) => art[j] === 'label' || art[j] === 'nurLabel' || art[j] === 'punkt'
+    return nachbar(i - 1) || nachbar(i + 1) || a === 'nurLabel'
+  })
+
+  const raus = []
+  const leerzeileDavor = () => {
+    if (raus.length && raus[raus.length - 1].trim()) raus.push('')
+  }
+
+  for (let i = 0; i < zeilen.length; i++) {
+    const zeile = zeilen[i].trim()
+    if (!zeile) {
+      leerzeileDavor()
+      continue
+    }
+
+    // Schon nummerierte Schritte bleiben, wie sie sind.
+    if (art[i] === 'schritt') {
+      raus.push(zeilen[i].replace(/\s+$/, ''))
+      continue
+    }
+
+    if (art[i] === 'kopf') {
+      leerzeileDavor()
+      raus.push(zeile)
+      continue
+    }
+
+    if (inReihe[i]) {
+      if (!raus.length || !raus[raus.length - 1].startsWith('*')) leerzeileDavor()
+      raus.push(art[i] === 'punkt' ? zeile : '* ' + zeile)
+      // Ein Doppelpunkt ohne eigenen Inhalt: was folgt, sind die Schritte dazu.
+      // Sind sie schon nummeriert, ist nichts mehr zu tun.
+      if (art[i] === 'nurLabel' && art[i + 1] !== 'schritt') {
+        const schritte = saetze(zeilen[i + 1] || '')
+        if (schritte.length >= 2) {
+          schritte.forEach((s, n) => raus.push(`   ${n + 1}. ${s}`))
+          i++
+        }
+      }
+      continue
+    }
+
+    // Fließtext direkt unter seiner Überschrift, ohne Leerzeile dazwischen.
+    raus.push(zeile)
+  }
+
+  return raus
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }

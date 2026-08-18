@@ -114,8 +114,11 @@ try {
     await knopf.click()
     await warte(1000)
     const danach = await seite.inputValue('#text')
-    ok('der Knopf tut auch etwas', danach.split('\n').length > 5, `${danach.split('\n').length} Zeilen`)
-    ok('die Abschnitte stehen einzeln', danach.split('\n').some((z) => z.trim() === '2. Introduction'))
+    const zeilen = danach.split('\n')
+    ok('der Knopf tut auch etwas', zeilen.length > 5, `${zeilen.length} Zeilen`)
+    ok('die Abschnitte stehen einzeln', zeilen.some((z) => z === '2. Introduction'))
+    ok('die Stichpunkte stehen untereinander', zeilen.filter((z) => z.startsWith('* ')).length >= 3)
+    ok('die Titelzeile bleibt schmucklos', zeilen[0] === 'Laboratory Report: Heart Dissection')
   }
 
   console.log('\n  TIPPEN')

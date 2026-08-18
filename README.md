@@ -107,26 +107,49 @@ Absatz — und den schickt Handschrift dann am Stück zum Modell, also genau das
 woran ein kleines Modell scheitert.
 
 **Messen** erkennt den Zustand und bietet einen Knopf an. Aus dem Klumpen oben
-werden neun Blöcke:
+wird wieder ein Dokument:
 
 ```
 Laboratory Report: Heart Dissection
 
 1. Title Page / Cover Page
-Title: Dissection of the Mammalian Heart
-Student Name: Jaidi Grotemeyer
-Course: Biology
-Date: August 17, 2026
+
+* Title: Dissection of the Mammalian Heart
+* Student Name: Jaidi Grotemeyer
+* Course: Biology
+* Date: August 17, 2026
 
 2. Introduction
-The mammalian heart is a four-chambered pump …
+The mammalian heart is a four-chambered pump managing pulmonary and systemic
+circuits. …
+
+3. Methodology
+
+* Materials: Sheep/pig heart, dissection kit, tray, gloves, camera.
+* Procedure:
+   1. Examine external anatomy (atria, ventricles, vessels).
+   2. Cut open a ventricle to expose chambers.
+   3. Locate valves, chordae tendineae, and papillary muscles.
 ```
 
-Getrennt wird nur an deutlichen Klebestellen: fehlendes Leerzeichen nach dem
-Satzende, eine Abschnittsnummer am Wort (`Dissection1.`, `anatomy.3.`), eine
-Beschriftung mit Doppelpunkt (`GrotemeyerCourse:`, `ObservationsFigure 1:`),
-ein Doppelpunkt direkt vor einem Großbuchstaben (`Procedure:Examine`). Geraten
-wird nicht, und kein Buchstabe geht verloren.
+Das geschieht in zwei Schritten. Erst **auftrennen**, und zwar nur an
+deutlichen Klebestellen: fehlendes Leerzeichen nach dem Satzende, eine
+Abschnittsnummer am Wort (`Dissection1.`, `anatomy.3.`), eine Beschriftung mit
+Doppelpunkt (`GrotemeyerCourse:`, `ObservationsFigure 1:`), ein Doppelpunkt
+direkt vor einem Großbuchstaben (`Procedure:Examine`).
+
+Dann **gliedern**, denn die Umbrüche allein sind noch keine Form. Eine Reihe
+von Beschriftungen (`Titel:`, `Name:`, `Kurs:`) ist eine Aufzählung und steht
+untereinander statt nebeneinander; was hinter einem alleinstehenden
+`Procedure:` folgt, sind nummerierte Schritte; vor jeder Abschnittsnummer steht
+eine Leerzeile.
+
+Geraten wird an keiner der beiden Stellen. Ein Aufzählungspunkt wird nur, was
+wie eine Beschriftung aussieht **und** Nachbarn derselben Art hat — sonst würde
+die Titelzeile `Laboratory Report: Heart Dissection` zum ersten Punkt einer
+Liste, die es nicht gibt. Nummeriert wird nur, was hinter einem Doppelpunkt
+ohne eigenen Inhalt steht. Kein Buchstabe geht verloren, und ein zweiter Klick
+ändert nichts mehr.
 
 Der Knopf erscheint nur, wenn es wirklich danach aussieht — und er drückt sich
 nicht von selbst. Es ist dein Text.
@@ -305,7 +328,7 @@ server/
   schreiben.js schlägt die Tasten an (macOS, Windows, Linux)
   gehirn.js    Umschreiben mit Nachmessen (Ollama oder Gratis-Anbieter)
   bloecke.js   Text in Absätze, Listen, Code zerlegen und zurück
-  entwirren.js verklebten Text erkennen und wieder auftrennen
+  entwirren.js verklebten Text auftrennen und wieder gliedern
   config.js    Einstellungen in data/
 web/index.html Oberfläche, eine Datei, kein Bauschritt
 data/          Schlüssel und Einstellungen — bleibt hier
@@ -358,5 +381,25 @@ node pruefe.mjs
 ```
 
 Misst flachen gegen lebendigen Text, prüft den Rhythmus, die Dauer-Eingaben,
-die Grenzen, den Stopp, die Absatz-Zerlegung, das Entwirren, alle Tore und die
-Modellwahl nach Arbeitsspeicher — 89 Prüfungen, ohne dass eine Taste angeschlagen oder ein Modell angerufen wird.
+die Grenzen, den Stopp, die Absatz-Zerlegung, das Auftrennen und Gliedern, alle
+Tore und die Modellwahl nach Arbeitsspeicher — 119 Prüfungen, ohne dass eine
+Taste angeschlagen oder ein Modell angerufen wird.
+
+```bash
+node pruefe-browser.mjs
+```
+
+Bedient die Seite wirklich: klickt die Knöpfe, liest, was danach im Feld steht.
+Der Unterschied ist nicht akademisch — der Knopf „Absätze wiederherstellen“ war
+einmal da, sichtbar, ohne Fehler in der Konsole, und tat nichts, weil sein
+Klick-Ohr nie angehängt wurde. Über die Schnittstelle allein ist das
+unsichtbar. Braucht Playwright; fehlt es, wird der Test übersprungen statt zu
+scheitern.
+
+```bash
+node pruefe-update.mjs
+```
+
+Baut ein eigenes Repo, setzt einen echten Commit hinein und lässt Handschrift
+sich daraus selbst holen und neu starten — inklusive der Probe, dass eigene
+Änderungen am Quelltext nicht überfahren werden.

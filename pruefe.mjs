@@ -5,7 +5,7 @@ import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } 
 import { bereit, cliclickBefehl, leerWeg, LEER_REIHE, LEER_WEGE } from './server/schreiben.js'
 import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell, speicherBudget } from './server/gehirn.js'
 import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
-import { istVerklebt, entwirren } from './server/entwirren.js'
+import { istVerklebt, entwirren, gliedern } from './server/entwirren.js'
 
 let gut = 0
 let schlecht = 0
@@ -292,8 +292,8 @@ pruefe('danach nicht mehr verklebt', !istVerklebt(entwirrt.text))
 for (const zeile of [
   'Laboratory Report: Heart Dissection',
   '1. Title Page / Cover Page',
-  'Student Name: Jaidi Grotemeyer',
-  'Course: Biology',
+  '* Student Name: Jaidi Grotemeyer',
+  '* Course: Biology',
   '2. Introduction',
   '3. Methodology',
   '4. Observations',
@@ -301,6 +301,39 @@ for (const zeile of [
   pruefe(`eigene Zeile: "${zeile.slice(0, 28)}"`, entwirrt.text.split('\n').some((z) => z.trim() === zeile))
 
 pruefe('kein Wort verloren', (entwirrt.text.match(/[A-Za-z]/g) || []).length === (KLUMPEN.match(/[A-Za-z]/g) || []).length)
+
+console.log('\n  GLIEDERN')
+// Auftrennen holt die Zeilen zurück, gliedern die Form. Beides zusammen ist
+// erst das, was der Nutzer sehen wollte: Überschriften, Punkte untereinander,
+// nummerierte Schritte — nicht ein Klumpen mit Umbrüchen darin.
+{
+  const g = entwirrt.text
+  const zeilen = g.split('\n')
+  const hat = (z) => zeilen.some((x) => x === z)
+
+  pruefe('die Titelzeile bleibt schmucklos', hat('Laboratory Report: Heart Dissection'))
+  pruefe(
+    'eine Reihe Beschriftungen wird zur Aufzählung',
+    ['* Title: Dissection of the Mammalian Heart', '* Student Name: Jaidi Grotemeyer', '* Course: Biology', '* Date: August 17, 2026'].every(hat),
+  )
+  pruefe('die Punkte stehen untereinander, nicht nebeneinander', zeilen.filter((z) => z.startsWith('* ')).length >= 6)
+  pruefe('vor jeder Abschnittsnummer steht eine Leerzeile', ['1.', '2.', '3.', '4.'].every((n) => {
+    const i = zeilen.findIndex((z) => z.startsWith(n + ' '))
+    return i > 0 && zeilen[i - 1] === ''
+  }))
+  pruefe('ein Doppelpunkt ohne Inhalt bekommt nummerierte Schritte', hat('   1. Examine external anatomy.') && hat('   2. Cut open a ventricle to expose chambers.'))
+  pruefe('die Schritte hängen unter ihrer Beschriftung', zeilen[zeilen.indexOf('   1. Examine external anatomy.') - 1] === '* Procedure:')
+  pruefe('ein einzelnes Label wird kein Aufzählungspunkt', hat('Figure 1: Exterior view showing atria and ventricles.'))
+  pruefe('Fließtext bleibt Fließtext', hat(zeilen.find((z) => z.startsWith('The mammalian heart')) || ''))
+  pruefe(
+    'beim Gliedern geht kein Buchstabe verloren',
+    (g.match(/[A-Za-z]/g) || []).length === (KLUMPEN.match(/[A-Za-z]/g) || []).length,
+    `${(KLUMPEN.match(/[A-Za-z]/g) || []).length} → ${(g.match(/[A-Za-z]/g) || []).length}`,
+  )
+  // Zweimal gliedern darf nichts weiter verändern — sonst wächst der Text bei
+  // jedem Klick auf den Knopf.
+  pruefe('nochmal drüber ändert nichts mehr', gliedern(g) === g)
+}
 pruefe(
   'aus einem Block werden viele Absätze',
   bloecke(entwirrt.text).filter((b) => b.art !== 'leer').length > bloecke(KLUMPEN).filter((b) => b.art !== 'leer').length,
