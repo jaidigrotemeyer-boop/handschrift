@@ -93,10 +93,17 @@
   .klumpen button { margin-top: .5rem; display: block; }
   /* Damit die Frage "läuft der neue Stand schon?" beantwortbar ist. */
   .stand { display: block; margin-top: .35rem; font-size: .78rem; opacity: .65; font-variant-numeric: tabular-nums; }
+  .neu {
+    display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between;
+    margin-bottom: 1.25rem; padding: .7rem .9rem; border-radius: 10px;
+    border: 1px solid var(--ton); background: var(--tonhell); font-size: .9rem;
+  }
+  .neu button { padding: .35rem .8rem; }
 </style>
 </head>
 <body>
 <main>
+  <div id="neu" class="neu" hidden></div>
   <h1>Handschrift</h1>
   <p>Text messen, lektorieren — und Zeichen für Zeichen tippen, im Rhythmus einer Hand.
     <span id="stand" class="stand"></span></p>
@@ -384,9 +391,42 @@ $('kleiner').onclick = () => groesseSetzen(nachbar(-1))
 $('groesser').onclick = () => groesseSetzen(nachbar(1))
 groesseSetzen(stufe)
 
+// Der Knopf, der die "hast du gezogen?"-Frage überflüssig macht.
+function neueFassung(neu) {
+  const kasten = $('neu')
+  if (!neu?.da) return void (kasten.hidden = true)
+  kasten.hidden = false
+  kasten.innerHTML =
+    `<span>Eine neuere Fassung liegt bereit (${neu.commits} Änderung${neu.commits === 1 ? '' : 'en'}).</span>` +
+    `<button id="holen" class="wichtig">Jetzt holen</button>`
+  $('holen').onclick = async () => {
+    const knopf = $('holen')
+    knopf.disabled = true
+    knopf.textContent = 'Holt …'
+    try {
+      const r = await hole('/api/aktualisieren', {})
+      if (!r.neustart) {
+        kasten.innerHTML = '<span>Schon aktuell.</span>'
+        return
+      }
+      kasten.innerHTML = `<span>Geholt (${r.vorher} → ${r.nachher}). Handschrift startet neu …</span>`
+      // Warten, bis der neue Server antwortet — dann die Seite frisch laden.
+      for (let i = 0; i < 40; i++) {
+        await new Promise((f) => setTimeout(f, 500))
+        const wieder = await hole('/api/stand').catch(() => null)
+        if (wieder) return location.reload()
+      }
+      kasten.innerHTML = '<span>Geholt, aber der Neustart dauert. Bitte im Terminal neu starten.</span>'
+    } catch (e) {
+      kasten.innerHTML = `<span class="fehler">${sicher(e.message)}</span>`
+    }
+  }
+}
+
 async function starten() {
   const s = await hole('/api/stand').catch(() => null)
   if (!s) return
+  neueFassung(s.neu)
   $('stand').textContent = s.stand
     ? `Fassung ${s.stand.fassung}${s.stand.commit ? ' · ' + s.stand.commit : ''}${s.stand.datum ? ' · ' + s.stand.datum : ''}`
     : ''

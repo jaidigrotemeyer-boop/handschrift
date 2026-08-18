@@ -10,6 +10,8 @@ import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } 
 import { umschreiben, anbieter, textArt } from './gehirn.js'
 import { istVerklebt, entwirren } from './entwirren.js'
 import { stand as fassung, standText } from './stand.js'
+import { nachsehen, holen, istGitOrdner } from './aktualisieren.js'
+import { spawn } from 'node:child_process'
 import { zeichen, bereit, SYSTEM, leerzeichenFinden } from './schreiben.js'
 import { lesen, schreiben, oeffentlich } from './config.js'
 
@@ -139,6 +141,7 @@ const server = http.createServer(async (req, res) => {
         tippen: await bereit(),
         system: SYSTEM,
         stand: fassung,
+        neu: await nachsehen(),
         maxStunden: MAX_DAUER_MS / 3600000,
         lauf: lauf && {
           laeuft: lauf.laeuft,
@@ -180,6 +183,26 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, await tippenStarten(daten))
     }
 
+    if (req.method === 'POST' && weg === '/api/aktualisieren') {
+      const r = await holen()
+      if (!r.geaendert) return json(res, 200, { ...r, neustart: false })
+      // Antwort erst rausschicken, dann sich selbst ersetzen: der Browser soll
+      // wissen, dass es geklappt hat, bevor die Verbindung wegbricht.
+      json(res, 200, { ...r, neustart: true })
+      setTimeout(() => {
+        // Das Kind erbt die Konsole, damit im Terminal weiterläuft, was vorher
+        // dort lief — sonst wirkt der Neustart wie ein Absturz.
+        spawn(process.execPath, [fileURLToPath(import.meta.url)], {
+          detached: true,
+          stdio: 'inherit',
+          env: process.env,
+        }).unref()
+        server.close(() => process.exit(0))
+        setTimeout(() => process.exit(0), 1500).unref()
+      }, 300)
+      return
+    }
+
     if (req.method === 'POST' && weg === '/api/stopp') {
       lauf?.abbruch?.abort()
       return json(res, 200, { gestoppt: true, getippt: lauf?.getippt ?? 0 })
@@ -200,8 +223,23 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`\n  Handschrift — ${standText()}`)
-  console.log(`  läuft auf http://localhost:${PORT}`)
-  console.log('  Nur dieser Rechner kommt dran. Beenden mit Strg+C\n')
-})
+// Nach einem Neustart hält der alte Prozess den Port noch einen Moment. Ohne
+// dieses Nachfassen schlüge genau der Selbst-Neustart fehl, den es einfacher
+// machen soll.
+function starten(versuche = 0) {
+  server.once('error', (err) => {
+    if (err.code === 'EADDRINUSE' && versuche < 12) return setTimeout(() => starten(versuche + 1), 400)
+    console.error(`\n  Start nicht möglich: ${err.message}\n`)
+    process.exit(1)
+  })
+  server.listen(PORT, '127.0.0.1', async () => {
+    console.log(`\n  Handschrift — ${standText()}`)
+    console.log(`  läuft auf http://localhost:${PORT}`)
+    console.log('  Nur dieser Rechner kommt dran. Beenden mit Strg+C\n')
+    if (istGitOrdner()) {
+      const neu = await nachsehen({ jetzt: true })
+      if (neu.da) console.log(`  ⟳ Neuere Fassung bereit (${neu.commits} Änderung(en)) — in der Oberfläche holen.\n`)
+    }
+  })
+}
+starten()
