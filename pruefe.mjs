@@ -3,7 +3,8 @@
 import { messen } from './server/messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './server/tippen.js'
 import { bereit } from './server/schreiben.js'
-import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt } from './server/gehirn.js'
+import { umschreiben, bewertung, saeubern, putzen, strukturPruefen, istDeutsch, listenAufraeumen, textArt, bestesModell } from './server/gehirn.js'
+import { bloecke, zusammensetzen, lektorierbar } from './server/bloecke.js'
 
 let gut = 0
 let schlecht = 0
@@ -108,10 +109,9 @@ pruefe('langer Text bleibt schnell', Date.now() - t1 < 2000, `${grosserPlan.schr
 console.log('\n  UMSCHREIBEN')
 // Das Modell wird hier eingesetzt statt angerufen: so lässt sich prüfen, was
 // die Schleife mit guten, faulen und schlechten Antworten macht.
-const GUT =
-  'Künstliche Intelligenz verändert Unternehmen. Große wie kleine. Was den Erfolg ausmacht, hängt an mehr Stellen als den offensichtlichen, und die wenigsten davon stehen in der Broschüre des Anbieters.\n\n' +
-  'Automatisierung verzahnt Prozesse. Sie spart Kosten, Zeit und Nerven — vor allem Nerven, wenn man die Leute fragt, die vorher jede Zahl von Hand übertragen haben. Das ist der Teil, den Präsentationen gern auslassen.\n\n' +
-  'Die Mitarbeiter entscheiden, ob es klappt. Nicht die Technik. Wer nur in Software investiert und nicht in die Menschen, die damit arbeiten sollen, kauft eine teure Enttäuschung.'
+// Ein einzelner brauchbarer Absatz — mehr bekommt das Modell jetzt nie zu tun.
+const GUT_ABSATZ =
+  'Digitalisierung trifft jede Firma. Große wie kleine. Was am Ende zählt, hängt an mehr Stellen als den offensichtlichen, und die wenigsten davon stehen in der Broschüre des Anbieters.'
 
 pruefe('Bewertung trennt flach von lebendig', bewertung(messen(FLACH)) > bewertung(messen(LEBENDIG)) * 3,
   `flach ${bewertung(messen(FLACH))} · lebendig ${bewertung(messen(LEBENDIG))}`)
@@ -119,69 +119,72 @@ pruefe('Bewertung trennt flach von lebendig', bewertung(messen(FLACH)) > bewertu
 pruefe('Vorrede wird abgeschnitten', saeubern('Hier ist der überarbeitete Text:\n\nDer Bäcker steht auf.') === 'Der Bäcker steht auf.')
 pruefe('Code-Block wird ausgepackt', saeubern('```markdown\nDer Bäcker steht auf.\n```') === 'Der Bäcker steht auf.')
 
-const einmal = await umschreiben(FLACH, { fragen: async () => GUT })
-pruefe('gute Antwort wird genommen', einmal.text === GUT, `${einmal.punkte.vorher} → ${einmal.punkte.nachher} Punkte`)
-pruefe('nur eine Runde nötig', einmal.versuche.length === 1)
+// Ein Dokument mit allem drin: Überschrift, Absätze, Liste, Code.
+const GEMISCHT =
+  '# Bericht\n\n' +
+  'In der heutigen Zeit spielt die Digitalisierung eine entscheidende Rolle für Unternehmen jeder Größe. Darüber hinaus ist es wichtig zu beachten, dass eine Vielzahl von Faktoren den Erfolg beeinflusst.\n\n' +
+  '- Punkt eins\n- Punkt zwei\n\n' +
+  'Zudem ermöglicht die Automatisierung eine nahtlose Verzahnung von Prozessen und Systemen. Zudem lassen sich dadurch Kosten deutlich effizienter einsetzen.\n\n' +
+  '```js\nconst x = 1\n```'
 
-// Faules Modell: gibt den Text unverändert zurück. Muss auffallen.
-let faulRunden = 0
-let faul = null
+const einmal = await umschreiben(FLACH, { fragen: async () => GUT_ABSATZ })
+pruefe('Absätze werden lektoriert', einmal.absaetze.lektoriert === einmal.absaetze.gesamt,
+  `${einmal.absaetze.lektoriert}/${einmal.absaetze.gesamt} · ${einmal.punkte.vorher} → ${einmal.punkte.nachher} Punkte`)
+pruefe('es wurde messbar besser', einmal.punkte.nachher < einmal.punkte.vorher)
+
+// Überschrift, Liste und Code gehen gar nicht erst zum Modell.
+let gefragt = 0
+const gemischt = await umschreiben(GEMISCHT, { fragen: async () => { gefragt++; return GUT_ABSATZ } })
+pruefe('nur Absätze gehen zum Modell', gemischt.absaetze.gesamt === 2, `${gemischt.absaetze.gesamt} Absätze, ${gefragt} Anfragen`)
+pruefe('Überschrift bleibt unberührt', gemischt.text.startsWith('# Bericht'))
+pruefe('Liste bleibt unberührt', gemischt.text.includes('- Punkt eins\n- Punkt zwei'))
+pruefe('Code bleibt unberührt', gemischt.text.includes('```js\nconst x = 1\n```'))
+
+// Kleines Modell: erst Englisch, dann brauchbar. Der zweite Anlauf muss zählen.
+let k = 0
+const zweiter = await umschreiben(FLACH, {
+  fragen: async () => (++k % 2 === 1 ? 'Automation seamlessly connects all the processes and systems together nicely.' : GUT_ABSATZ),
+})
+pruefe('englische Antwort wird abgelehnt, zweiter Anlauf zählt', zweiter.absaetze.lektoriert > 0,
+  `${zweiter.absaetze.lektoriert}/${zweiter.absaetze.gesamt}`)
+
+// Modell liefert durchweg Murks: der Absatz bleibt stehen, statt alles zu kippen.
+let murks = null
 try {
-  await umschreiben(FLACH, { fragen: async () => { faulRunden++; return FLACH } })
+  await umschreiben(FLACH, { fragen: async () => 'Kurz.' })
 } catch (err) {
-  faul = err.message
+  murks = err.message
 }
-pruefe('unveränderte Antwort wird abgelehnt', /nicht besser/.test(faul || ''), faul?.slice(0, 60))
-pruefe('dabei wurde nachgehakt', faulRunden === 3, `${faulRunden} Runden`)
+pruefe('durchweg unbrauchbar wird gemeldet', /Kein Absatz wurde besser/.test(murks || ''), murks?.slice(0, 60))
 
-// Erst faul, dann gut: die bessere Fassung muss gewinnen.
-let n = 0
-const spaet = await umschreiben(FLACH, { fragen: async () => (++n < 2 ? FLACH : GUT) })
-pruefe('späte gute Runde gewinnt', spaet.text === GUT, `${spaet.versuche.length} Runden`)
+// Teils gut, teils Murks: was geht, wird genommen.
+let z = 0
+const teils = await umschreiben(GEMISCHT, { fragen: async () => (++z === 1 ? GUT_ABSATZ : 'Kurz.') })
+pruefe('teilweiser Erfolg zählt', teils.absaetze.lektoriert === 1 && teils.absaetze.behalten.length === 1,
+  `${teils.absaetze.lektoriert} lektoriert, ${teils.absaetze.behalten.length} behalten (${teils.absaetze.behalten[0]})`)
 
-// Zusammenfasser: liefert einen Bruchteil des Textes zurück.
-let zuKurz = null
-try {
-  await umschreiben(FLACH, { fragen: async () => 'KI ist wichtig für Firmen.' })
-} catch (err) {
-  zuKurz = err.message
+pruefe('Ausfall wird durchgereicht',
+  await umschreiben(FLACH, { fragen: async () => { throw new Error('kein Netz') } }).then(() => false, (e) => /kein Netz/.test(e.message)))
+
+console.log('\n  BLÖCKE')
+{
+  const b = bloecke(GEMISCHT)
+  pruefe('verlustfrei zerlegt und zusammengesetzt', zusammensetzen(b) === GEMISCHT)
+  pruefe('Arten erkannt', b.filter((x) => x.art === 'ueberschrift').length === 1 && b.filter((x) => x.art === 'code').length === 1)
+  pruefe('nur Absätze sind lektorierbar', b.filter(lektorierbar).every((x) => x.art === 'absatz'))
+  pruefe('kurzer Absatz bleibt verschont', !bloecke('Brötchen.').some(lektorierbar))
+  const code = bloecke('Text davor.\n\n```\n- kein Listenpunkt\n# keine Überschrift\n```\n\nText danach.')
+  pruefe('Code schluckt sein Inneres', code.filter((x) => x.art === 'code').length === 1)
 }
-pruefe('Zusammenfassung wird verworfen', /Länge|brauchbare/.test(zuKurz || ''), zuKurz?.slice(0, 70))
 
-let ohne = null
-try {
-  await umschreiben(FLACH, { fragen: async () => { throw new Error('kein Netz') } })
-} catch (err) {
-  ohne = err.message
-}
-pruefe('Ausfall wird durchgereicht', /kein Netz/.test(ohne || ''))
-
-console.log('\n  FORM — damit es nicht komisch aussieht')
-pruefe('Zeilen-Leerzeichen weg', putzen('Hallo   \nWelt  ', 'x') === 'Hallo\nWelt')
-pruefe('drei Leerzeilen werden zwei', putzen('A\n\n\n\nB', 'x') === 'A\n\nB')
-pruefe('krumme Zitate zurück auf gerade', putzen('Er sagte „hallo".', 'Er sagte "moin".') === 'Er sagte "hallo".')
-pruefe('als Zitat verpackter Text wird ausgepackt', saeubern('„Der Bäcker steht auf."') === 'Der Bäcker steht auf.')
-pruefe('Sprache erkannt', istDeutsch('Der Hund ist auf der Wiese und schläft') && !istDeutsch('The dog is on the lawn and sleeps'))
-
-const MIT_FORM = '# Titel\n\nEin Absatz mit Inhalt.\n\n- Punkt eins\n- Punkt zwei\n\nEin Schlusswort dazu.'
-pruefe('gleiche Form ist in Ordnung', strukturPruefen(MIT_FORM, '# Titel\n\nAnderer Absatz.\n\n- Eins\n- Zwei\n\nAnderes Schlusswort.').length === 0)
-pruefe('verlorene Überschrift fällt auf', /Überschriften/.test(strukturPruefen(MIT_FORM, 'Titel\n\nAbsatz.\n\n- Eins\n- Zwei\n\nSchluss.').join()))
-pruefe('verlorene Listenpunkte fallen auf', /Listenpunkte/.test(strukturPruefen(MIT_FORM, '# Titel\n\nAbsatz.\n\n- Eins\n\nSchluss.').join()))
-pruefe('zur Wand zusammengelaufen fällt auf', /Absätze verloren/.test(strukturPruefen('A.\n\nB.\n\nC.', 'A. B. C.').join()))
-pruefe('Sprachwechsel fällt auf', /Sprache/.test(strukturPruefen('Der Hund liegt auf der Wiese und schläft tief.', 'The dog is on the lawn and sleeps deeply.').join()))
-pruefe('Abbruch mitten im Satz fällt auf', /mitten im Satz/.test(strukturPruefen('Ein ganzer Satz.', 'Ein abgeschnittener Satz der').join()))
-
-// Modell liefert inhaltlich besser, aber formal kaputt: darf nicht durchgehen.
-const KAPUTT = GUT.replace(/\n\n/g, ' ')
-let formRunden = 0
-let formFehler = null
-try {
-  await umschreiben(FLACH, { fragen: async () => { formRunden++; return KAPUTT } })
-} catch (err) {
-  formFehler = err.message
-}
-pruefe('formal kaputte Fassung wird verworfen', /brauchbare|Form/.test(formFehler || ''), formFehler?.slice(0, 70))
-pruefe('dabei wurde nachgehakt', formRunden === 3, `${formRunden} Runden`)
+console.log('\n  OLLAMA-MODELLWAHL')
+for (const [ein, soll] of [
+  [['llama3.2:3b', 'qwen2.5:14b', 'nomic-embed-text'], 'qwen2.5:14b'],
+  [['llama3.2:1b', 'llama3.1:8b'], 'llama3.1:8b'],
+  [['nomic-embed-text', 'llava:7b', 'mistral:7b'], 'mistral:7b'],
+])
+  pruefe(`größtes Modell gewählt (${soll})`, bestesModell(ein) === soll, bestesModell(ein))
+pruefe('leere Liste ergibt nichts', bestesModell([]) === null)
 
 console.log('\n  STICHPUNKTE UND GRÖSSEN')
 pruefe(
@@ -214,10 +217,23 @@ pruefe(
   /Ebenen/.test(strukturPruefen('# Groß\n\nEin Satz hier.', '### Groß\n\nEin Satz hier.').join()),
 )
 
-// Erst formal kaputt, dann sauber — die saubere muss gewinnen.
-let f = 0
-const gerettet = await umschreiben(FLACH, { fragen: async () => (++f < 2 ? KAPUTT : GUT) })
-pruefe('saubere Fassung gewinnt danach', gerettet.text === GUT, `${gerettet.versuche.length} Runden`)
+// Was ein Modell einem einzelnen Absatz antun kann, und ob es auffliegt.
+for (const [was, antwort] of [
+  ['Überschrift eingebaut', '# Titel\n\nDigitalisierung trifft jede Firma, große wie kleine, und das seit Jahren.'],
+  ['Aufzählung eingebaut', '- Digitalisierung trifft jede Firma\n- Große wie kleine, und das seit Jahren schon'],
+  ['zwei Absätze draus gemacht', 'Digitalisierung trifft jede Firma.\n\nGroße wie kleine, und das seit vielen Jahren schon.'],
+  ['abgeschnitten', 'Digitalisierung trifft jede Firma, große wie kleine, und das schon seit vielen'],
+  ['unverändert zurückgegeben', null],
+]) {
+  const eingabe = 'In der heutigen Zeit spielt die Digitalisierung eine entscheidende Rolle für Unternehmen jeder Größe.'
+  let raus = null
+  try {
+    await umschreiben(eingabe, { fragen: async () => antwort ?? eingabe })
+  } catch (err) {
+    raus = err.message
+  }
+  pruefe(`Absatz-Pfusch fällt auf: ${was}`, /Kein Absatz wurde besser/.test(raus || ''))
+}
 
 console.log('\n  AUSDAUER')
 // Der Abbruch-Horcher hing früher bei jedem Zeichen neu am selben Signal und

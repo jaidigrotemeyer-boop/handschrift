@@ -94,65 +94,59 @@ sind keine Verteilung.
 
 ## Lektorieren
 
-**Umschreiben** gibt genau diese Funde an ein Sprachmodell weiter — nicht ein
-vages „mach es menschlicher", sondern die konkreten Stellen. Inhalt, Sprache und
-Länge bleiben; Überschriften, Listen, Zitate und Code auch.
+**Umschreiben** arbeitet **Absatz für Absatz**, nicht am Stück. Das hat einen
+praktischen Grund: ein kleines Modell daheim scheitert zuverlässig an „schreib
+mir dieses Dokument neu" — es kürzt, wechselt mitten drin die Sprache, bricht ab
+oder gibt eine Zusammenfassung zurück. Ein einzelner Absatz gelingt ihm.
 
-Entscheidend ist, was danach passiert: **die Antwort wird nachgemessen.** Ein
-Modell, das „weniger Fließband" hört, liefert oft dieselben Floskeln in neuer
-Reihenfolge. Darum zählt hier nicht die Absicht, sondern das Ergebnis.
+Nebenbei löst das die Form-Frage von selbst:
 
-- Wird es nicht besser, wird noch einmal gefragt — mit dem, was übrig geblieben
-  ist. Bis zu drei Runden.
-- Behalten wird die **beste** Fassung, nicht die letzte.
-- Wird es in keiner Runde besser, sagt Handschrift das, statt eine schlechtere
-  Fassung als Erfolg zu verkaufen.
+```
+# Bericht              ← geht nie zum Modell
+                       
+Ein Absatz Text …      ← geht zum Modell
+                       
+- Punkt eins           ← geht nie zum Modell
+- Punkt zwei           
+                       
+```js                  ← geht nie zum Modell
+const x = 1            
+```                    
+```
 
-Hinterher stehen die Punkte da: klein ist gut. `212 → 0` heißt, es hat gewirkt.
+Überschriften, Listen, Zitate, Tabellen und Code werden gar nicht erst
+verschickt, sondern unverändert wieder eingesetzt. Was nicht verschickt wird,
+kann auch nicht kaputtgehen. Sehr kurze Absätze bleiben ebenfalls verschont —
+an „Brötchen." gibt es nichts zu lektorieren.
 
-### Er schaut erst, was für ein Text das ist
+### Jeder Absatz wird nachgemessen
 
-Ein Merkblatt aus Stichpunkten will anders lektoriert werden als ein Aufsatz.
-Handschrift bestimmt die Art vorher und schreibt sie dem Modell in den Auftrag:
-
-| Art | Was dem Modell gesagt wird |
-|---|---|
-| **Fließtext** | Bleibt Fließtext — keine Überschriften, keine Aufzählungen einbauen. |
-| **Aufzählung** | Bleibt Aufzählung. Jeder Stichpunkt in einer eigenen Zeile. |
-| **Mit Überschriften** | Überschriften bleiben, samt Ebene: aus `#` darf kein `###` werden. |
-| **Dokument** | Beides bleibt, mit denselben Ebenen und derselben Anzahl. |
-| **Mit Code** | Der Code bleibt Zeichen für Zeichen; überarbeitet wird nur der Text drumherum. |
-
-Die erkannte Art steht in der Oberfläche über den Zahlen.
-
-### Damit es nicht komisch aussieht
-
-Ein Modell kann inhaltlich liefern und formal Unsinn bauen. Jede Fassung muss
-darum durch fünf Tore, sonst fliegt sie raus und es wird neu gefragt — mit der
-Beanstandung als Auftrag:
+Ein Modell, das „weniger Fließband" hört, liefert oft dieselben Floskeln in
+neuer Reihenfolge. Darum zählt nicht die Absicht, sondern das Ergebnis. Jede
+Antwort muss durch diese Tore, sonst wird sie verworfen und der Absatz ein
+zweites Mal gefragt — mit der Beanstandung als Auftrag:
 
 | Tor | Was auffliegt |
 |---|---|
-| **Länge** | Unter zwei Dritteln oder über 140 %: zusammengefasst statt lektoriert. |
-| **Gerüst** | Überschriften, Listenpunkte und Code-Zäune müssen exakt gleich viele sein — und die Überschriften auf derselben Ebene stehen. |
-| **Absätze** | Verlorene Absätze heißt: der Text ist zur Wand zusammengelaufen. |
-| **Sprache** | Deutsch rein, Englisch raus — der Klassiker kleiner Modelle. |
-| **Ende** | Endet das Original sauber und die Fassung mitten im Satz, war sie abgeschnitten. |
+| **Überschrift** | Eine Raute eingebaut, wo keine war. |
+| **Aufzählung** | Aus Fließtext eine Liste gemacht. |
+| **Absatz** | Aus einem Absatz mehrere gemacht. |
+| **Länge** | Unter 60 % oder über 170 % — gekürzt statt lektoriert. |
+| **Sprache** | Deutsch rein, Englisch raus. Der Klassiker kleiner Modelle. |
+| **Ende** | Endet das Original sauber und die Antwort mitten im Satz. |
+| **Messung** | Der Absatz wurde messbar schlechter. |
 
-Dazu wird geputzt, was sonst sofort ins Auge fällt: Leerzeichen am Zeilenende,
-drei Leerzeilen am Stück, ein als Zitat verpackter Text, krumme
-Anführungszeichen in einem Text, der vorher gerade hatte — und vor allem
-**Stichpunkte, die nebeneinander statt untereinander landen.** Modelle geben
-Listen gern als eine Zeile zurück (`- eins - zwei - drei`); daraus werden wieder
-drei Zeilen. Ein Gedankenstrich mitten im Fließtext bleibt dabei in Ruhe, weil
-nur Zeilen aufgeteilt werden, die schon mit einem Aufzählungszeichen beginnen.
+Klappt es auch beim zweiten Mal nicht, **bleibt genau dieser Absatz stehen** —
+und die anderen werden trotzdem besser. Vorher fiel in dem Fall die ganze
+Überarbeitung durch, und man bekam gar nichts.
 
-Über **A−** und **A+** lässt sich der Text größer und kleiner stellen; die
-Einstellung bleibt über Neustarts erhalten.
+Hinterher steht da, was passiert ist:
 
-Die verworfenen Runden stehen hinterher in der Oberfläche. Ein langsames
-Umschreiben soll nicht wie ein Hänger wirken, sondern zeigen, was aussortiert
-wurde.
+```
+Überarbeitet mit ollama (qwen2.5:14b) · 2 von 3 Absätzen
+nachgemessen: 181.8 → 57.8 Punkte (klein ist gut)
+Ein Absatz unverändert gelassen: nur noch 13 % der Länge
+```
 
 ### Woher das Modell kommt
 
@@ -161,8 +155,14 @@ kein Netz, keine Kosten:
 
 ```bash
 ollama serve
-ollama pull llama3.2:3b
+ollama pull llama3.2:3b     # klein und schnell, reicht absatzweise
+ollama pull qwen2.5:7b      # merklich besseres Deutsch, wenn der Rechner mag
 ```
+
+Sind mehrere Modelle da, nimmt Handschrift das größte — beim Lektorieren ist
+größer spürbar besser. Einbettungs- und Bildmodelle werden übersprungen, die
+können keinen Text schreiben. In den Einstellungen lässt sich ein bestimmtes
+Modell festlegen.
 
 Sonst genügt ein Gratis-Schlüssel, einer reicht. Er liegt in
 `data/einstellungen.json` auf deinem Rechner:
@@ -224,6 +224,7 @@ server/
   tippen.js    der Tipp-Rhythmus — reine Rechnung, keine Tastatur
   schreiben.js schlägt die Tasten an (macOS, Windows, Linux)
   gehirn.js    Umschreiben mit Nachmessen (Ollama oder Gratis-Anbieter)
+  bloecke.js   Text in Absätze, Listen, Code zerlegen und zurück
   config.js    Einstellungen in data/
 web/index.html Oberfläche, eine Datei, kein Bauschritt
 data/          Schlüssel und Einstellungen — bleibt hier
@@ -236,6 +237,5 @@ node pruefe.mjs
 ```
 
 Misst flachen gegen lebendigen Text, prüft den Rhythmus, die Dauer-Eingaben,
-die Grenzen, den Stopp, die Umschreib-Schleife, alle Form-Tore und die
-Textart-Erkennung — 65 Prüfungen, ohne dass eine Taste angeschlagen oder ein
-Modell angerufen wird.
+die Grenzen, den Stopp, die Absatz-Zerlegung, alle Tore und die Modellwahl —
+70 Prüfungen, ohne dass eine Taste angeschlagen oder ein Modell angerufen wird.

@@ -11,6 +11,7 @@
 // einmal gefragt, diesmal mit dem, was übrig geblieben ist.
 import { lesen } from './config.js'
 import { messen } from './messen.js'
+import { bloecke, zusammensetzen, lektorierbar } from './bloecke.js'
 
 const OLLAMA = process.env.OLLAMA_URL || 'http://127.0.0.1:11434'
 
@@ -56,12 +57,35 @@ async function gemini(nachrichten, signal) {
   return (daten.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('')
 }
 
+/**
+ * Welches Modell nehmen, wenn mehrere da sind? Größer ist beim Lektorieren
+ * spürbar besser, darum wird nach der Milliarden-Zahl im Namen sortiert.
+ * Modelle ohne Zahl landen dazwischen; reine Einbettungs- und Bildmodelle
+ * fliegen raus, die können keinen Text schreiben.
+ */
+export function bestesModell(namen) {
+  const taugt = namen.filter((n) => !/embed|bge|clip|llava|moondream|vision|whisper/i.test(n))
+  const groesse = (n) => {
+    const t = n.match(/(\d+(?:\.\d+)?)\s*b\b/i)
+    return t ? Number(t[1]) : 4
+  }
+  return taugt.sort((a, b) => groesse(b) - groesse(a))[0] || namen[0] || null
+}
+
 async function ollama(nachrichten, signal) {
-  const modell = lesen().ollamaModell || 'llama3.2:3b'
+  const c = lesen()
+  const modell = c.ollamaModell || bestesModell((await ollamaDa())?.modelle || []) || 'llama3.2:3b'
   const antwort = await fetch(`${OLLAMA}/api/chat`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ model: modell, messages: nachrichten, stream: false, options: { temperature: 0.85 } }),
+    // Ein Absatz ist kurz — mehr als 700 Token braucht die Antwort nie, und die
+    // Grenze hindert kleine Modelle daran, ins Fabulieren zu geraten.
+    body: JSON.stringify({
+      model: modell,
+      messages: nachrichten,
+      stream: false,
+      options: { temperature: 0.8, num_predict: 700 },
+    }),
     signal,
   })
   if (!antwort.ok) throw new Error(`HTTP ${antwort.status} ${(await antwort.text()).slice(0, 160)}`)
@@ -97,7 +121,7 @@ export async function anbieter() {
   const c = lesen()
   const liste = []
   const o = await ollamaDa()
-  if (o?.modelle.length) liste.push({ name: `ollama (${c.ollamaModell || o.modelle[0]})`, fragen: ollama })
+  if (o?.modelle.length) liste.push({ name: `ollama (${c.ollamaModell || bestesModell(o.modelle)})`, fragen: ollama })
   if (c.geminiKey) liste.push({ name: 'gemini', fragen: gemini })
   for (const n of ['cerebras', 'groq', 'openrouter'])
     if (c[OPENAI_ART[n].schluessel]) liste.push({ name: n, fragen: (m, s) => openaiArt(n, m, s) })
@@ -359,17 +383,24 @@ const anfrage = (text, funde, ton, extra, runde, nachtrag) => [
   },
 ]
 
+// ────────────────────────────────────────────────────────────────────────────
+// Umschreiben — Absatz für Absatz
+// ────────────────────────────────────────────────────────────────────────────
+
 /**
- * Text überarbeiten lassen und nachmessen. Bis zu `runden` Versuche; behalten
- * wird der beste, nicht der letzte. Verliert eine Fassung mehr als ein Drittel
- * des Textes oder bläht ihn auf, wird sie verworfen — dann hat das Modell
- * zusammengefasst statt lektoriert.
+ * Absatzweise statt am Stück. Der Grund ist ein kleines Modell daheim: an
+ * einem ganzen Dokument scheitert es zuverlässig, an einem einzelnen Absatz
+ * nicht. Nebenbei kann die Form gar nicht kaputtgehen — Überschriften, Listen
+ * und Code werden nie verschickt, sondern unverändert wieder eingesetzt.
+ *
+ * Misslingt ein Absatz, bleibt genau dieser Absatz stehen. Vorher fiel in dem
+ * Fall die ganze Überarbeitung durch.
  */
-export async function umschreiben(text, { ton, extra, signal, runden = 3, fragen } = {}) {
+export async function umschreiben(text, { ton, extra, signal, versucheJeBlock = 2, fragen } = {}) {
   const roh = String(text || '').trim()
   if (!roh) throw new Error('Kein Text da.')
 
-  let stelle = fragen ? [{ name: 'prüfstand', fragen }] : await anbieter()
+  const stelle = fragen ? [{ name: 'prüfstand', fragen }] : await anbieter()
   if (!stelle.length)
     throw new Error(
       'Kein Gehirn erreichbar. Entweder Ollama daheim starten (ollama serve, kein Schlüssel nötig) ' +
@@ -377,76 +408,139 @@ export async function umschreiben(text, { ton, extra, signal, runden = 3, fragen
     )
 
   const vorher = { ...messen(roh), art: textArt(roh) }
-  const start = bewertung(vorher)
-  const versuche = []
-  let bester = null
-  let aktuell = vorher
-  let nachtrag = null
+  const liste = bloecke(roh)
+  const dran = liste.filter(lektorierbar)
+  if (!dran.length)
+    throw new Error('Nichts zu lektorieren: der Text besteht aus Überschriften, Listen, Code oder sehr kurzen Absätzen.')
 
-  for (let runde = 1; runde <= Math.max(1, runden); runde++) {
+  const netzfehler = []
+  let anbieterName = null
+  let lektoriert = 0
+  const behalten = []
+
+  for (const block of liste) {
     if (signal?.aborted) break
-    const nachrichten = anfrage(roh, aktuell.auffaellig, ton, extra, runde, nachtrag)
+    if (!lektorierbar(block)) continue
 
-    let antwort = null
-    const fehler = []
-    for (const a of stelle) {
-      try {
-        antwort = { text: putzen(saeubern(await a.fragen(nachrichten, signal)), roh), anbieter: a.name }
-        break
-      } catch (err) {
-        if (err?.name === 'AbortError') throw err
-        fehler.push(`${a.name}: ${err.message}`)
+    const vorBlock = messen(block.text)
+    let genommen = null
+    let grund = 'unverändert gelassen'
+
+    for (let versuch = 1; versuch <= Math.max(1, versucheJeBlock) && !genommen; versuch++) {
+      const nachrichten = blockAnfrage(block.text, vorBlock.auffaellig, ton, extra, grund, versuch)
+
+      let antwort = null
+      for (const a of stelle) {
+        try {
+          antwort = putzen(saeubern(await a.fragen(nachrichten, signal)), block.text)
+          anbieterName = anbieterName || a.name
+          break
+        } catch (err) {
+          if (err?.name === 'AbortError') throw err
+          netzfehler.push(`${a.name}: ${err.message}`)
+        }
       }
-    }
-    if (!antwort) {
-      if (bester) break
-      throw new Error(`Kein Gehirn hat geantwortet.\n${fehler.join('\n')}`)
-    }
-    if (!antwort.text) {
-      versuche.push({ runde, verworfen: 'leere Antwort' })
-      nachtrag = 'die Antwort war leer'
-      continue
+      if (antwort === null) break
+
+      const klage = blockPruefen(block.text, antwort, vorBlock)
+      if (klage) grund = klage
+      else genommen = antwort
     }
 
-    const neu = { ...messen(antwort.text), art: textArt(antwort.text) }
-    const anteil = neu.woerter / Math.max(1, vorher.woerter)
-    if (anteil < 0.67 || anteil > 1.4) {
-      versuche.push({ runde, verworfen: `Länge ${Math.round(anteil * 100)} % — zusammengefasst statt lektoriert` })
-      nachtrag = `der Text hatte danach ${Math.round(anteil * 100)} % der ursprünglichen Länge`
-      continue
+    if (genommen) {
+      block.text = genommen
+      lektoriert++
+    } else {
+      behalten.push(grund)
     }
-
-    // Inhaltlich besser, formal kaputt zählt nicht als besser. Genau daran
-    // erkennt man eine Überarbeitung, die "komisch aussieht".
-    const formfehler = strukturPruefen(roh, antwort.text)
-    if (formfehler.length) {
-      versuche.push({ runde, verworfen: `Form: ${formfehler.join(', ')}` })
-      nachtrag = formfehler.join(', ')
-      continue
-    }
-    nachtrag = null
-
-    const punkte = bewertung(neu)
-    versuche.push({ runde, anbieter: antwort.anbieter, punkte, auffaellig: neu.auffaellig.length })
-    if (!bester || punkte < bester.punkte) bester = { ...antwort, messung: neu, punkte }
-    aktuell = neu
-    // Nichts mehr zu holen: keine Beanstandung übrig, oder schon deutlich besser.
-    if (!neu.auffaellig.length || punkte <= start * 0.4) break
   }
 
-  if (!bester) throw new Error(`Keine brauchbare Fassung. ${versuche.map((v) => v.verworfen).filter(Boolean).join(' · ')}`)
-  if (bester.punkte >= start)
+  if (!anbieterName) throw new Error(`Kein Gehirn hat geantwortet.\n${[...new Set(netzfehler)].join('\n')}`)
+
+  const neu = zusammensetzen(liste)
+
+  // Sollte nach dem blockweisen Vorgehen nie zuschlagen — die Form kann gar
+  // nicht mehr kaputtgehen. Bleibt als Wächter für den Fall, dass jemand
+  // später wieder ganze Texte durchreicht.
+  const formfehler = strukturPruefen(roh, neu)
+  if (formfehler.length) throw new Error(`Die Form hat gelitten: ${formfehler.join(', ')}`)
+
+  const nachher = { ...messen(neu), art: textArt(neu) }
+  const punkte = { vorher: bewertung(vorher), nachher: bewertung(nachher) }
+
+  if (!lektoriert)
     throw new Error(
-      `Die Überarbeitung wurde nicht besser (${start} → ${bester.punkte} Punkte). ` +
+      `Kein Absatz wurde besser. Häufigster Grund: ${behalten[0] || 'unbekannt'}. ` +
         'Ein größeres Modell hilft hier mehr als noch ein Versuch.',
     )
 
   return {
-    text: bester.text,
+    text: neu,
     vorher,
-    nachher: bester.messung,
-    anbieter: bester.anbieter,
-    punkte: { vorher: start, nachher: bester.punkte },
-    versuche,
+    nachher,
+    anbieter: anbieterName,
+    punkte,
+    absaetze: { gesamt: dran.length, lektoriert, behalten },
+    // Für die Oberfläche, die bisher eine Runden-Liste erwartet hat.
+    versuche: behalten.map((grund, i) => ({ runde: i + 1, verworfen: grund })),
   }
+}
+
+const BLOCK_AUFTRAG = `Du bist Lektor. Du bekommst EINEN Absatz und gibst ihn überarbeitet zurück.
+
+- Nur diesen Absatz. Keine Überschrift, keine Aufzählung, keine Leerzeile.
+- Inhalt bleibt: keine neue Behauptung, keine neue Zahl, nichts weglassen.
+- Sprache des Originals beibehalten.
+- Ungefähr gleich lang.
+- Antworte nur mit dem Absatz. Keine Vorrede, keine Anführungszeichen drumherum.
+
+Woran du arbeitest:
+- Satzlängen mischen: ein kurzer Satz, ein langer, nicht alle gleich.
+- Floskeln streichen. Im Deutschen dabei die Wortstellung richten: fällt
+  "Zudem" vorne weg, wird aus "Zudem bietet die Technik X" nicht "Bietet die
+  Technik X", sondern "Die Technik bietet X".
+- Konkretes Wort statt Allerweltswort, aktiv statt Substantivkette.`
+
+const blockAnfrage = (absatz, funde, ton, extra, grund, versuch) => [
+  { role: 'system', content: BLOCK_AUFTRAG },
+  {
+    role: 'user',
+    content: [
+      versuch > 1 ? `Dein letzter Versuch war unbrauchbar: ${grund}. Diesmal genauer.` : '',
+      funde.length ? `Schwächen dieses Absatzes:\n- ${funde.join('\n- ')}` : 'Der Absatz ist unauffällig — fass ihn nur an, wo es wirklich besser wird.',
+      ton ? `Ton: ${ton}` : '',
+      extra || '',
+      '',
+      'Absatz:',
+      absatz,
+    ]
+      .filter(Boolean)
+      .join('\n'),
+  },
+]
+
+/** Was an einem einzelnen Absatz nicht stimmt. null heißt: brauchbar. */
+function blockPruefen(original, neu, vorBlock) {
+  if (!neu) return 'die Antwort war leer'
+  if (/^#{1,6}\s/m.test(neu)) return 'eine Überschrift eingebaut'
+  if (/^\s*(?:[-*+]|\d+\.)\s+/m.test(neu)) return 'eine Aufzählung eingebaut'
+  if (/\n\s*\n/.test(neu)) return 'aus einem Absatz mehrere gemacht'
+
+  const zaehl = (t) => (t.match(/\S+/g) || []).length
+  const anteil = zaehl(neu) / Math.max(1, zaehl(original))
+  if (anteil < 0.6) return `nur noch ${Math.round(anteil * 100)} % der Länge`
+  if (anteil > 1.7) return `auf ${Math.round(anteil * 100)} % aufgebläht`
+
+  const a = sprache(original)
+  const b = sprache(neu)
+  if (a && b && a !== b) return `Sprache gewechselt (${a} → ${b})`
+
+  const endetSauber = (t) => /[.!?…:;"'“”»)\]\d]$/.test(t.trim())
+  if (endetSauber(original) && !endetSauber(neu)) return 'endet mitten im Satz'
+
+  if (neu.trim() === original.trim()) return 'unverändert zurückgegeben'
+
+  const nachBlock = messen(neu)
+  if (bewertung(nachBlock) > bewertung(vorBlock)) return 'wurde messbar schlechter'
+  return null
 }

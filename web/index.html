@@ -181,6 +181,8 @@ $('text').oninput = () => {
   dauerZeigen()
 }
 
+const behalten1 = (n) => (n === 1 ? 'Ein Absatz' : `${n} Absätze`)
+
 const ARTNAME = {
   fliesstext: 'Fließtext',
   liste: 'Aufzählung',
@@ -241,17 +243,17 @@ $('umschreiben').onclick = async () => {
     $('text').value = r.text
     $('text').dispatchEvent(new Event('input'))
     befundZeigen(r.nachher, r.nachher.art)
-    const runden = r.versuche.length === 1 ? 'im ersten Anlauf' : `nach ${r.versuche.length} Anläufen`
-    // Verworfene Runden zeigen: sonst wirkt ein langsames Umschreiben wie ein
-    // Hänger, statt wie das Aussortieren einer unbrauchbaren Fassung.
-    const verworfen = r.versuche.filter((v) => v.verworfen)
+    // Absatzweise: zeigen, wie viele durchkamen und warum welche stehen blieben.
+    // Ein stehen gelassener Absatz ist kein Fehler, sondern eine Entscheidung.
+    const a = r.absaetze
+    const behalten = a.behalten.length
+      ? `<br>${behalten1(a.behalten.length)} unverändert gelassen: ${a.behalten.map(sicher).join(', ')}`
+      : ''
     $('befund').insertAdjacentHTML(
       'afterbegin',
-      `<p class="leise" style="margin:.9rem 0 0">Überarbeitet mit ${r.anbieter}, ${runden} · nachgemessen: ${r.punkte.vorher} → ${r.punkte.nachher} Punkte (klein ist gut)<br>vorher: ${r.vorher.urteil}` +
-        (verworfen.length
-          ? `<br>verworfen: ${verworfen.map((v) => `Runde ${v.runde} (${v.verworfen})`).join(', ')}`
-          : '') +
-        `</p>`,
+      `<p class="leise" style="margin:.9rem 0 0">Überarbeitet mit ${sicher(r.anbieter)} · ${a.lektoriert} von ${a.gesamt} Absätzen` +
+        `<br>nachgemessen: ${r.punkte.vorher} → ${r.punkte.nachher} Punkte (klein ist gut)` +
+        `<br>vorher: ${sicher(r.vorher.urteil)}${behalten}</p>`,
     )
   } catch (e) {
     $('befund').innerHTML = `<p class="fehler">${e.message}</p>`
