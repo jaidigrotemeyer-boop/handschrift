@@ -91,12 +91,15 @@
     border: 1px solid var(--ton); background: var(--tonhell); font-size: .9rem;
   }
   .klumpen button { margin-top: .5rem; display: block; }
+  /* Damit die Frage "läuft der neue Stand schon?" beantwortbar ist. */
+  .stand { display: block; margin-top: .35rem; font-size: .78rem; opacity: .65; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
 <main>
   <h1>Handschrift</h1>
-  <p>Text messen, lektorieren — und Zeichen für Zeichen tippen, im Rhythmus einer Hand.</p>
+  <p>Text messen, lektorieren — und Zeichen für Zeichen tippen, im Rhythmus einer Hand.
+    <span id="stand" class="stand"></span></p>
 
   <section>
     <div class="kopfreihe">
@@ -373,6 +376,9 @@ groesseSetzen(stufe)
 async function starten() {
   const s = await hole('/api/stand').catch(() => null)
   if (!s) return
+  $('stand').textContent = s.stand
+    ? `Fassung ${s.stand.fassung}${s.stand.commit ? ' · ' + s.stand.commit : ''}${s.stand.datum ? ' · ' + s.stand.datum : ''}`
+    : ''
   $('ton').value = s.einstellungen.ton || ''
   $('ollamaModell').value = s.einstellungen.ollamaModell || ''
   $('gehirnstand').innerHTML = s.gehirne?.length

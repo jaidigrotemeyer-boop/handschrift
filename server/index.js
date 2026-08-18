@@ -9,6 +9,7 @@ import { messen } from './messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './tippen.js'
 import { umschreiben, anbieter, textArt } from './gehirn.js'
 import { istVerklebt, entwirren } from './entwirren.js'
+import { stand as fassung, standText } from './stand.js'
 import { zeichen, bereit, SYSTEM } from './schreiben.js'
 import { lesen, schreiben, oeffentlich } from './config.js'
 
@@ -128,6 +129,7 @@ const server = http.createServer(async (req, res) => {
         gehirne: gehirne.map((g) => g.name),
         tippen: await bereit(),
         system: SYSTEM,
+        stand: fassung,
         maxStunden: MAX_DAUER_MS / 3600000,
         lauf: lauf && {
           laeuft: lauf.laeuft,
@@ -183,6 +185,7 @@ const server = http.createServer(async (req, res) => {
 })
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`\n  Handschrift läuft auf http://localhost:${PORT}`)
+  console.log(`\n  Handschrift — ${standText()}`)
+  console.log(`  läuft auf http://localhost:${PORT}`)
   console.log('  Nur dieser Rechner kommt dran. Beenden mit Strg+C\n')
 })

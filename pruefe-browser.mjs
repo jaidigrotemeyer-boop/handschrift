@@ -57,6 +57,9 @@ try {
   await seite.goto(`http://localhost:${PORT}/`)
   await warte(600)
 
+  const gezeigt = (await seite.locator('#stand').textContent()) || ''
+  ok('die laufende Fassung steht auf der Seite', /Fassung/.test(gezeigt), gezeigt.trim())
+
   console.log('  SCHRIFTGRÖSSE')
   const groesse = () => seite.evaluate(() => getComputedStyle(document.querySelector('#text')).fontSize)
   const g0 = await groesse()
