@@ -7,22 +7,24 @@ Dokument schreibt sich selbst voll.
 **Google Apps Script** läuft auf Googles Rechnern, gehört zu jedem
 Google-Konto und wird im Browser bedient — auch auf einem iPad.
 
-## In fünf Schritten
+## In drei Schritten
 
-1. **Text fertig machen.** Auf der Handschrift-Seite aufräumen, gliedern,
-   umschreiben. Dann kopieren.
-2. **Zwei Dokumente anlegen** in Google Docs:
-   - `Handschrift Quelle` — hier den fertigen Text einfügen.
-   - `Handschrift Ziel` — leer lassen. Hier wird geschrieben.
-   Die Namen müssen genau so lauten.
-3. **script.google.com** öffnen, „Neues Projekt". Auf dem iPad in Safari
-   vorher **Desktop-Website anfordern** — der Editor ist für Mäuse gebaut.
-4. Den Inhalt von `Handschrift.gs` hineinkopieren. Oben `DAUER_MINUTEN`
-   einstellen: über wie viele Minuten der Text verteilt werden soll.
-5. Die Funktion **`starten`** ausführen. Google fragt einmal nach der
-   Erlaubnis — das ist dein eigenes Konto, und sie gilt nur diesem Skript.
+1. **[script.google.com](https://script.google.com)** öffnen, „Neues Projekt".
+   Auf dem iPad in Safari vorher **Desktop-Website anfordern** — der Editor
+   ist für Mäuse gebaut und sonst kaum zu bedienen.
+2. Den Inhalt von `Handschrift.gs` hineinkopieren. Oben bei `TEXT` deinen
+   fertigen Text einsetzen, bei `DAUER_MINUTEN` die gewünschte Dauer.
+3. Die Funktion **`starten`** ausführen.
+
+Mehr nicht. Die beiden Dokumente legt das Skript selbst an und schreibt dir
+die Links ins Protokoll — auf dem iPad ist das Anlegen von Hand der lästigste
+Teil, und den soll niemand machen müssen. Google fragt einmal nach der
+Erlaubnis; das ist dein eigenes Konto, und sie gilt nur diesem Skript.
 
 Dann `Handschrift Ziel` offen lassen und zusehen.
+
+Wer den Text lieber nicht in den Editor tippt, lässt `TEXT` leer und schreibt
+ihn ins Dokument `Handschrift Quelle`, das beim ersten Starten entsteht.
 
 ## Was dabei passiert
 
@@ -50,3 +52,11 @@ Schreibvorgang mehr, sondern eine erfundene Entstehungsgeschichte: eine
 Versionsgeschichte, die so nie stattgefunden hat, für jeden, der später
 hineinschaut. Ein sichtbarer Schreibvorgang ist eine Darstellung. Ein
 gefälschter Zeitverlauf ist eine Behauptung über die Vergangenheit.
+
+## Ungetestet
+
+Dieses Skript ist geschrieben, aber nicht auf einem echten Google-Konto
+gelaufen — von hier aus gibt es keinen Zugang zu deinem Drive. Der Rest von
+Handschrift ist durchgemessen; dieses Stück ist es nicht. Wenn etwas klemmt,
+steht der Grund im Protokoll des Editors (Ausführungen → Protokoll), und die
+Meldungen sind so geschrieben, dass sie sagen, was zu tun ist.

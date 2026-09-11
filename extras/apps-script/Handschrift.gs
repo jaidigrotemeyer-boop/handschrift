@@ -5,19 +5,23 @@
  * Browser bedient. Auch auf einem iPad. Damit schreibt sich ein Dokument
  * nach und nach selbst voll, statt in einem Rutsch eingefügt zu werden.
  *
- * ── Was du brauchst ──────────────────────────────────────────────────────
+ * ── Was du tun musst ───────────────────────────────────────────────────
  *
- *   1. Ein Google-Dokument mit dem fertigen Text. Nenn es "Handschrift Quelle".
- *      (Text vorher auf der Handschrift-Seite aufräumen und umschreiben.)
- *   2. Ein leeres Google-Dokument, in das geschrieben werden soll.
- *      Nenn es "Handschrift Ziel".
- *   3. script.google.com öffnen, neues Projekt, diesen Code hineinkopieren.
+ *   1. script.google.com öffnen, "Neues Projekt", diesen Code hineinkopieren.
  *      Auf dem iPad in Safari vorher "Desktop-Website anfordern" —
  *      der Editor ist für Mäuse gebaut und sonst kaum zu bedienen.
+ *   2. Unten bei TEXT deinen fertigen Text einsetzen. (Vorher auf der
+ *      Handschrift-Seite aufräumen, gliedern, umschreiben.)
+ *   3. Die Funktion "starten" ausführen.
  *
- * Dann die Funktion "starten" ausführen. Google fragt einmal nach der
- * Erlaubnis, auf deine Dokumente zuzugreifen; das ist deine eigene, und die
- * Erlaubnis gilt nur diesem Skript.
+ * Mehr nicht. Die Dokumente legt das Skript selbst an und schreibt dir die
+ * Links ins Protokoll. Google fragt einmal nach der Erlaubnis, auf deine
+ * Dokumente zuzugreifen; das ist dein eigenes Konto, und sie gilt nur diesem
+ * Skript.
+ *
+ * Wer den Text lieber nicht in den Editor tippt, lässt TEXT leer und schreibt
+ * ihn stattdessen in das Dokument "Handschrift Quelle", das beim ersten
+ * Starten angelegt wird.
  *
  * ── Was es tut ───────────────────────────────────────────────────────────
  *
@@ -39,10 +43,15 @@
 
 // ── Einstellungen ─────────────────────────────────────────────────────────
 
-var QUELLE = 'Handschrift Quelle'
-var ZIEL = 'Handschrift Ziel'
+// Der Text. Hier hineinsetzen — zwischen die Backticks, so lang er will.
+// Bleibt das leer, wird stattdessen aus dem Dokument QUELLE gelesen.
+var TEXT = ``
+
+// Über wie viele Minuten der Text verteilt wird.
 var DAUER_MINUTEN = 30
 
+var QUELLE = 'Handschrift Quelle'
+var ZIEL = 'Handschrift Ziel'
 var MAX_MINUTEN = 4 * 60
 
 // ── Anfangen und aufhören ────────────────────────────────────────────────
@@ -56,8 +65,26 @@ function starten() {
     )
   }
 
-  var text = dokument(QUELLE).getBody().getText()
-  if (!text.trim()) throw new Error('Das Dokument "' + QUELLE + '" ist leer.')
+  // Beide Dokumente anlegen, falls es sie noch nicht gibt. Ein Skript, das
+  // mit "Kein Dokument gefunden" abbricht, wäre eine Hausaufgabe und keine
+  // Hilfe — zumal das Anlegen auf einem iPad der lästigste Teil wäre.
+  var quelleDoc = dokument(QUELLE, true)
+  var zielDoc = dokument(ZIEL, true)
+
+  // Steht der Text im Skript, gilt der. Sonst der aus dem Quelle-Dokument.
+  var text = TEXT.trim() ? TEXT : quelleDoc.getBody().getText()
+  if (!text.trim()) {
+    throw new Error(
+      'Kein Text da. Entweder oben bei TEXT einsetzen, oder in dieses ' +
+        'Dokument schreiben: ' + quelleDoc.getUrl(),
+    )
+  }
+  if (TEXT.trim() && quelleDoc.getBody().getText().trim() !== TEXT.trim()) {
+    // Damit "stand" und das Weiterschreiben später dieselbe Quelle sehen wie
+    // der Start — auch nachdem der Editor längst zu ist.
+    quelleDoc.getBody().setText(TEXT)
+    quelleDoc.saveAndClose()
+  }
 
   stoppen()
   var lager = PropertiesService.getUserProperties()
@@ -68,12 +95,14 @@ function starten() {
   })
 
   ScriptApp.newTrigger('weiterschreiben').timeBased().everyMinutes(1).create()
-  weiterschreiben()
 
   Logger.log(
     text.length + ' Zeichen über ' + DAUER_MINUTEN + ' Minuten — etwa ' +
       Math.ceil(text.length / DAUER_MINUTEN) + ' Zeichen je Minute.',
   )
+  Logger.log('Zusehen kannst du hier: ' + zielDoc.getUrl())
+
+  weiterschreiben()
 }
 
 /** Aufhören, egal wo es gerade steht. */
@@ -89,11 +118,14 @@ function stand() {
   var lager = PropertiesService.getUserProperties()
   var stelle = Number(lager.getProperty('stelle') || 0)
   var gesamt = Number(lager.getProperty('gesamt') || 0)
+  if (!gesamt) {
+    Logger.log('Noch nicht gestartet.')
+    return
+  }
   Logger.log(
-    gesamt
-      ? stelle + ' von ' + gesamt + ' Zeichen (' + Math.round((stelle / gesamt) * 100) + ' %)'
-      : 'Noch nicht gestartet.',
+    stelle + ' von ' + gesamt + ' Zeichen (' + Math.round((stelle / gesamt) * 100) + ' %)',
   )
+  Logger.log('Dokument: ' + dokument(ZIEL, true).getUrl())
 }
 
 // ── Die eigentliche Arbeit ───────────────────────────────────────────────
@@ -108,7 +140,7 @@ function weiterschreiben() {
   var stelle = Number(lager.getProperty('stelle') || 0)
   var jeMinute = Number(lager.getProperty('jeMinute') || 200)
 
-  var quelle = dokument(QUELLE).getBody().getText()
+  var quelle = dokument(QUELLE, true).getBody().getText()
   if (stelle >= quelle.length) {
     stoppen()
     Logger.log('Fertig.')
@@ -131,7 +163,7 @@ function weiterschreiben() {
   // stünde nach jeder Minute ein ganzer Absatz auf einmal da statt zu wachsen.
   // saveAndClose() erzwingt das Schreiben; danach muss das Dokument neu
   // geöffnet werden, denn das geschlossene ist nicht mehr zu gebrauchen.
-  var ziel = dokument(ZIEL)
+  var ziel = dokument(ZIEL, true)
   var koerper = ziel.getBody()
   var absaetze = koerper.getParagraphs()
   var letzter = absaetze[absaetze.length - 1]
@@ -161,7 +193,7 @@ function weiterschreiben() {
 
     if (Date.now() > schubEnde) {
       ziel.saveAndClose()
-      ziel = dokument(ZIEL)
+      ziel = dokument(ZIEL, true)
       koerper = ziel.getBody()
       absaetze = koerper.getParagraphs()
       letzter = absaetze[absaetze.length - 1]
@@ -180,14 +212,19 @@ function weiterschreiben() {
 
 // ── Kleinkram ────────────────────────────────────────────────────────────
 
-/** Dokument über seinen Namen finden. Zwei gleichnamige sind ein Fehler. */
-function dokument(name) {
+/**
+ * Dokument über seinen Namen finden — und anlegen, wenn es fehlt.
+ *
+ * Zwei gleichnamige sind dagegen ein Fehler, den niemand raten soll: dann
+ * wüsste das Skript nicht, in welches der beiden es schreibt.
+ */
+function dokument(name, anlegenWennFehlt) {
   var dateien = DriveApp.getFilesByName(name)
   if (!dateien.hasNext()) {
-    throw new Error(
-      'Kein Dokument mit dem Namen "' + name + '" gefunden. ' +
-        'Namen müssen genau stimmen, Groß- und Kleinschreibung inklusive.',
-    )
+    if (!anlegenWennFehlt) throw new Error('Kein Dokument mit dem Namen "' + name + '" gefunden.')
+    var neu = DocumentApp.create(name)
+    Logger.log('Angelegt: "' + name + '" — ' + neu.getUrl())
+    return neu
   }
   var datei = dateien.next()
   if (dateien.hasNext()) {
