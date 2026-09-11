@@ -8,6 +8,7 @@
 //   pruefe.mjs          das Rechnen — Messen, Rhythmus, Tore, Gliedern
 //   pruefe-ollama.mjs   der Weg zum Modell, über echtes HTTP
 //   pruefe-browser.mjs  die Oberfläche, wirklich angeklickt
+//   pruefe-ipad.mjs     dieselbe Seite auf einem iPad, mit dem Finger
 //   pruefe-tippen.mjs   das Tippen, in ein fremdes Fenster und zurückgelesen
 //   pruefe-update.mjs   das Selbst-Aktualisieren, mit echtem Neustart
 //
@@ -19,6 +20,7 @@ const PROBEN = [
   ['Rechnen', 'pruefe.mjs'],
   ['Modell', 'pruefe-ollama.mjs'],
   ['Oberfläche', 'pruefe-browser.mjs'],
+  ['iPad', 'pruefe-ipad.mjs'],
   ['Tippen', 'pruefe-tippen.mjs'],
   ['Aktualisieren', 'pruefe-update.mjs'],
 ]

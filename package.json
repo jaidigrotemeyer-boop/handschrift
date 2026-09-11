@@ -4,13 +4,17 @@
   "private": true,
   "type": "module",
   "description": "Text messen und lektorieren, dann Zeichen für Zeichen tippen — im Rhythmus einer Hand.",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server/index.js",
+    "start:ipad": "HANDSCHRIFT_NETZ=1 node server/index.js",
     "pruefe": "node pruefe-alles.mjs",
     "pruefe:rechnen": "node pruefe.mjs",
     "pruefe:modell": "node pruefe-ollama.mjs",
     "pruefe:browser": "node pruefe-browser.mjs",
+    "pruefe:ipad": "node pruefe-ipad.mjs",
     "pruefe:tippen": "node pruefe-tippen.mjs",
     "pruefe:update": "node pruefe-update.mjs",
     "hilfe": "node hilfe.mjs",

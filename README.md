@@ -69,6 +69,54 @@ node hilfe.mjs
 Ganz oben steht dann, ob überhaupt etwas antwortet, auf welchem Port, und ob
 der laufende Server dieselbe Fassung hat wie der Ordner.
 
+## Vom iPad aus
+
+Auf dem iPad selbst kann Handschrift nicht laufen, und das lässt sich auch
+nicht nachrüsten: unter iPadOS darf keine App in eine andere hineintippen. Das
+ist die Bauart des Systems, keine fehlende Funktion.
+
+Was geht, ist die Arbeitsteilung. **Das iPad ist der Bildschirm, der Mac bleibt
+die Hand.** Messen, Auftrennen und Umschreiben laufen ohnehin auf dem Rechner —
+und getippt wird dort, in das Fenster, das *auf dem Mac* gerade vorn ist.
+
+Auf dem Mac:
+
+```bash
+npm run start:ipad
+```
+
+Im Terminal steht dann eine Adresse und eine sechsstellige Zahl:
+
+```
+  ── Vom iPad aus ──────────────────────────────
+  http://192.168.1.42:3018   (en0)
+  Geheimzahl: 418305
+```
+
+Die Adresse auf dem iPad in Safari öffnen, die Zahl einmal eintippen — fertig.
+Sie bleibt im Browser des iPads gespeichert und gilt, bis Handschrift auf dem
+Mac beendet wird.
+
+Ohne `start:ipad` hört Handschrift wie bisher nur auf `127.0.0.1`, und das iPad
+kommt gar nicht erst an. Das ist die richtige Voreinstellung, denn hier geht es
+nicht bloß um eine Webseite: **wer die Seite erreicht, kann den Mac tippen
+lassen** — in das Fenster, das dort vorn ist. Darum die Geheimzahl, darum nur
+auf Ansage, und darum im eigenen WLAN statt im Café-Netz. Nach zwanzig falschen
+Zahlen ist fünf Minuten Ruhe.
+
+Die Seite selbst richtet sich auf den Finger ein: Felder ab 16px, weil Safari
+sonst beim Hineintippen zoomt, Knöpfe ab 44px, ein Regler, den man trifft, und
+ein **Kopieren**-Knopf, weil Markieren im Textfeld auf einem iPad eine Fummelei
+ist. Wer die Seite von einem anderen Gerät aus öffnet, liest oben, wo der Text
+landen wird — sonst klickt man auf dem iPad ins Zielfenster und wundert sich.
+
+```bash
+node pruefe-ipad.mjs
+```
+
+Stellt ein iPad nach, bedient die Seite mit dem Finger und prüft beides: dass
+niemand ohne Zahl hereinkommt und dass kein Feld und kein Knopf zu klein ist.
+
 ## Messen
 
 KI-Prosa liest sich flach. Alle Sätze etwa gleich lang, immer dieselben
@@ -482,6 +530,7 @@ zusammen; was auf diesem Rechner nicht geht, wird übersprungen und gesagt.
   ✓ Rechnen        176 von 176 in Ordnung
   ✓ Modell         12 von 12 in Ordnung
   ✓ Oberfläche     22 von 22 in Ordnung
+  ✓ iPad           16 von 16 in Ordnung
   ✓ Tippen         16 von 16 in Ordnung
   ✓ Aktualisieren  10 von 10 in Ordnung
 ```
@@ -499,6 +548,10 @@ nach Arbeitsspeicher. Ohne Netz, ohne Tastendruck.
 echte Ollama-Protokoll: Handschrift muss sie finden, das passende Modell
 wählen, absatzweise fragen und mit der Antwort etwas anfangen. Prüft auch, was
 in der Meldung steht, wenn Ollama mitten im Betrieb wegfällt.
+
+**`node pruefe-ipad.mjs`** — dieselbe Seite auf einem nachgestellten iPad, mit
+dem Finger bedient. Prüft, dass ohne Geheimzahl niemand hereinkommt, dass kein
+Feld unter 16px liegt (sonst zoomt Safari) und kein Knopf unter 44px.
 
 **`node pruefe-browser.mjs`** — die Oberfläche, wirklich angeklickt. Der
 Unterschied ist nicht akademisch: der Knopf „Absätze wiederherstellen“ war

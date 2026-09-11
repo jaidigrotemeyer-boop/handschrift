@@ -99,11 +99,61 @@
     border: 1px solid var(--ton); background: var(--tonhell); font-size: .9rem;
   }
   .neu button { padding: .35rem .8rem; }
+
+  /* ── Finger statt Maus ──────────────────────────────────────────────────
+     Auf dem iPad wird Handschrift nicht angeklickt, sondern angetippt, und
+     zwei Dinge gehen dabei sonst schief.
+
+     Erstens zoomt Safari beim Hineintippen in jedes Feld, dessen Schrift
+     kleiner als 16px ist — das ganze Bild springt, und man muss von Hand
+     zurückzoomen. Das ist kein Geschmacksurteil, sondern eine feste Regel von
+     iOS. Also sind die Felder ab hier 16px.
+
+     Zweitens ist ein Knopf von 24px Höhe mit der Maus leicht und mit dem
+     Daumen ein Glücksspiel; Apple nennt 44px als Mindestmaß. */
+  @media (pointer: coarse) {
+    textarea, input[type=text], input[type=password], input[type=number], select {
+      font-size: max(16px, var(--textgroesse));
+    }
+    button { min-height: 44px; padding: .6rem 1.1rem; }
+    .stufen button { min-width: 44px; padding: .4rem .7rem; font-size: 1rem; }
+    .neu button { min-height: 44px; }
+    /* Der Regler ist auf dem iPad das wichtigste Bedienteil — und mit 4px
+       Höhe kaum zu treffen. */
+    input[type=range] { height: 44px; }
+    /* Auf Fingergeräten bleibt ein :hover nach dem Tippen kleben, bis
+       woanders hingetippt wird. Der Knopf sieht dann aus, als wäre er noch
+       ausgewählt. */
+    button:hover:not(:disabled) { border-color: var(--rand); }
+    summary { padding: .5rem 0; }
+  }
+
+  /* iPad im Hochformat, geteilter Bildschirm, iPhone: die Knopfreihen dürfen
+     umbrechen, aber nichts darf seitlich hinauslaufen. */
+  @media (max-width: 560px) {
+    body { padding: 1.25rem .9rem 3rem; }
+    section { padding: 1rem; border-radius: 10px; }
+    .kopfreihe { flex-wrap: wrap; }
+    .knopfreihe button { flex: 1 1 auto; }
+  }
+
+  /* Auf dem iPad ist der Text das Hauptfenster — dort darf er mehr Platz
+     bekommen, ohne dass man scrollen muss. */
+  @media (min-width: 820px) and (pointer: coarse) {
+    textarea { min-height: 320px; }
+  }
+
+  .fern {
+    margin: 0 0 1.25rem; padding: .7rem .9rem; border-radius: 10px;
+    border: 1px solid var(--rand); background: var(--karte); font-size: .9rem; color: var(--leise);
+  }
+  .fern b { color: var(--schrift); font-weight: 600; }
 </style>
 </head>
 <body>
 <main>
   <div id="neu" class="neu" hidden></div>
+  <div id="fern" class="fern" hidden></div>
   <h1>Handschrift</h1>
   <p>Text messen, lektorieren — und Zeichen für Zeichen tippen, im Rhythmus einer Hand.
     <span id="stand" class="stand"></span></p>
@@ -120,6 +170,7 @@
     <div class="knopfreihe">
       <button id="messen" class="wichtig">Messen</button>
       <button id="umschreiben">Umschreiben</button>
+      <button id="kopieren">Kopieren</button>
       <span id="textstand" class="leise" style="align-self:center"></span>
     </div>
     <div id="befund"></div>
@@ -166,11 +217,38 @@
 
 <script>
 const $ = (id) => document.getElementById(id)
+// Kommt die Seite von einem anderen Gerät — vom iPad aus dem WLAN —, verlangt
+// der Server eine Geheimzahl. Sie liegt im Browser des iPads und geht nie
+// weiter als an den Rechner, von dem die Seite stammt.
+const ZAHL_SCHLUESSEL = 'handschrift-zahl'
+let geheimzahl = null
+try { geheimzahl = localStorage.getItem(ZAHL_SCHLUESSEL) } catch {}
+
 const hole = async (weg, daten) => {
-  const antwort = await fetch(weg, daten ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(daten) } : {})
+  const kopf = { ...(daten ? { 'content-type': 'application/json' } : {}) }
+  if (geheimzahl) kopf['x-handschrift-zahl'] = geheimzahl
+  const antwort = await fetch(weg, { method: daten ? 'POST' : 'GET', headers: kopf, body: daten ? JSON.stringify(daten) : undefined })
   const j = await antwort.json()
-  if (!antwort.ok) throw new Error(j.fehler || 'Fehler')
+  if (!antwort.ok) {
+    if (j.zahlNoetig) {
+      zahlFragen()
+      throw new Error(j.fehler)
+    }
+    throw new Error(j.fehler || 'Fehler')
+  }
   return j
+}
+
+/** Nach der Geheimzahl fragen und die Seite danach neu laden. */
+function zahlFragen(grund = '') {
+  const eingabe = prompt(
+    (grund ? grund + '\n\n' : '') +
+      'Geheimzahl eingeben.\n\nSie steht im Terminal auf dem Rechner, auf dem Handschrift läuft — unter „Vom iPad aus".',
+  )
+  if (!eingabe) return
+  geheimzahl = eingabe.trim()
+  try { localStorage.setItem(ZAHL_SCHLUESSEL, geheimzahl) } catch {}
+  location.reload()
 }
 
 // Der Regler läuft logarithmisch von 10 Sekunden bis vier Stunden. Linear
@@ -438,6 +516,52 @@ function neueFassung(neu) {
   }
 }
 
+/**
+ * Sagen, wo der Text landet.
+ *
+ * Auf dem iPad ist das die entscheidende Frage, und sie wird leicht falsch
+ * beantwortet. Handschrift läuft nicht auf dem iPad — das kann sie dort auch
+ * nicht, denn unter iPadOS darf keine App in eine andere hineintippen. Sie
+ * läuft auf dem Rechner, und dort wird auch getippt: in das Fenster, das auf
+ * jenem Rechner gerade vorn ist.
+ *
+ * Wer das nicht weiß, klickt auf dem iPad ins Zielfenster und wundert sich,
+ * dass nichts ankommt.
+ */
+function fernZeigen(s) {
+  const kasten = $('fern')
+  // Dieselbe Maschine? Dann gibt es nichts zu erklären.
+  const daheim = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
+  if (daheim) {
+    kasten.hidden = true
+    return
+  }
+  const wo = s.rechnername ? `<b>${sicher(s.rechnername)}</b>` : 'dem anderen Rechner'
+  kasten.hidden = false
+  kasten.innerHTML =
+    `Du siehst Handschrift von einem anderen Gerät aus. Messen, Auftrennen und Umschreiben ` +
+    `laufen ohnehin dort drüben — und <b>getippt wird auch dort</b>, auf ${wo}, in das Fenster, ` +
+    `das <em>auf jenem Rechner</em> vorn ist. Nicht hier. ` +
+    `Also vor dem Start dort das Zielfenster nach vorn holen; der Vorlauf reicht dafür nicht, ` +
+    `wenn du hier tippst. Auf einem iPad selbst kann nichts getippt werden — das lässt iPadOS nicht zu.`
+}
+
+$('kopieren').onclick = async () => {
+  const knopf = $('kopieren')
+  const text = $('text').value
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    knopf.textContent = 'Kopiert ✓'
+  } catch {
+    // Ohne Zwischenablage-Recht bleibt der alte Weg: markieren, der Rest ist
+    // Sache des Geräts. Auf dem iPad erscheint dann das übliche Menü.
+    $('text').select()
+    knopf.textContent = 'Markiert — jetzt kopieren'
+  }
+  setTimeout(() => (knopf.textContent = 'Kopieren'), 2000)
+}
+
 async function starten() {
   const s = await hole('/api/stand').catch(() => null)
   if (!s) return
@@ -457,6 +581,7 @@ async function starten() {
     ? `${s.tippen.hinweis}${s.tippen.rechte ? ' ' + s.tippen.rechte : ''}`
     : `<span class="fehler">${s.tippen.hinweis}</span>`
   if (!s.tippen.ok) $('tippen').disabled = true
+  fernZeigen(s)
   if (s.lauf?.laeuft) verfolgen()
   dauerZeigen()
 }

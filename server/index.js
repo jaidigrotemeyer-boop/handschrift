@@ -4,6 +4,7 @@
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { messen } from './messen.js'
 import { zeichenPlan, aufDauer, dauerLesen, abspielen, zeitText, MAX_DAUER_MS } from './tippen.js'
@@ -14,6 +15,7 @@ import { nachsehen, holen, istGitOrdner } from './aktualisieren.js'
 import { spawn } from 'node:child_process'
 import { zeichen, bereit, SYSTEM, sondertastenFinden, mindestAbstandMs } from './schreiben.js'
 import { lesen, schreiben, oeffentlich } from './config.js'
+import { netzOffen, geheimzahl, pruefen, netzHinweis } from './netz.js'
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PORT = Number(process.env.PORT) || 3018
@@ -139,6 +141,14 @@ const server = http.createServer(async (req, res) => {
   const weg = url.pathname
 
   try {
+    // Ist der Server fürs WLAN geöffnet, braucht jeder Zugriff von außen die
+    // Geheimzahl. Die Seite selbst bleibt frei — sie muss ja erst danach
+    // fragen können, und sie enthält nichts als das Bedienfeld.
+    if (weg.startsWith('/api/')) {
+      const tor = pruefen(req)
+      if (!tor.ok) return json(res, tor.code, { fehler: tor.fehler, zahlNoetig: tor.code === 401 })
+    }
+
     if (req.method === 'GET' && (weg === '/' || weg === '/index.html')) {
       const datei = path.join(WURZEL, 'web', 'index.html')
       const inhalt = fs.readFileSync(datei)
@@ -154,6 +164,10 @@ const server = http.createServer(async (req, res) => {
         gehirne: gehirne.map((g) => g.name),
         tippen: await bereit(),
         system: SYSTEM,
+        // Damit die Seite auf einem iPad sagen kann, wo der Text landet:
+        // nicht hier, sondern auf dem Rechner, der diesen Server betreibt.
+        netz: netzOffen(),
+        rechnername: os.hostname().replace(/\.local$/, ''),
         stand: fassung,
         neu: await nachsehen(),
         maxStunden: MAX_DAUER_MS / 3600000,
@@ -275,7 +289,12 @@ server.on('listening', async () => {
   const port = server.address().port
   console.log(`\n  Handschrift — ${standText()}`)
   console.log(`  läuft auf http://localhost:${port}`)
-  console.log('  Nur dieser Rechner kommt dran. Beenden mit Strg+C\n')
+  console.log(
+    netzOffen()
+      ? '  Auch aus dem WLAN erreichbar — siehe unten. Beenden mit Strg+C'
+      : '  Nur dieser Rechner kommt dran. Beenden mit Strg+C\n',
+  )
+  if (netzOffen()) console.log(netzHinweis(port))
   seiteOeffnen(port)
   if (istGitOrdner()) {
     const neu = await nachsehen({ jetzt: true })
@@ -302,6 +321,9 @@ function starten(port = PORT, versuche = 0) {
     console.error(`\n  Start nicht möglich: ${err.message}\n`)
     process.exit(1)
   })
-  server.listen(port, '127.0.0.1')
+  // Ohne HANDSCHRIFT_NETZ=1 hört Handschrift nur auf dem Rechner selbst. Das
+  // ist die richtige Voreinstellung: wer die Seite erreicht, kann hier tippen
+  // lassen.
+  server.listen(port, netzOffen() ? '0.0.0.0' : '127.0.0.1')
 }
 starten()
