@@ -110,12 +110,38 @@ ein **Kopieren**-Knopf, weil Markieren im Textfeld auf einem iPad eine Fummelei
 ist. Wer die Seite von einem anderen Gerät aus öffnet, liest oben, wo der Text
 landen wird — sonst klickt man auf dem iPad ins Zielfenster und wundert sich.
 
+### Wenn der Mac gar nicht dabei ist
+
+Dann fehlt der Server — und damit das Tippen, das Ollama und die Wahl des
+Zielfensters. Messen, Auftrennen, Gliedern und die Formelreste sind aber reine
+Rechnung: kein Netz, keine Datei, kein Node. Das läuft genauso im Browser des
+iPads.
+
+```
+http://localhost:3018/unterwegs
+```
+
+Dieselben Dateien wie der Server sie benutzt — `messen.js`, `entwirren.js`,
+`bloecke.js`, `tippen.js` — werden dort direkt als Module geladen. Zwei
+Fassungen derselben Messung wären der sichere Weg, dass sie auseinanderlaufen.
+
+Die Seite zeigt beim Öffnen schon einen Befund, samt eines Streifens aus den
+Satzlängen: bei Maschinentext steht dort eine gleichmäßige Mauer, bei
+geschriebenem Text ein Zickzack. Die Tipp-Vorschau spielt den Rhythmus ab, den
+der Mac an die Tastatur gäbe — ansehen kann man ihn, in eine andere App tippen
+nicht.
+
+Umgeschrieben wird dort nur in der Claude-Fassung dieser Seite; ohne Mac gibt
+es kein Ollama, und einen Schlüssel ins Netz zu legen wäre der falsche Preis.
+
 ```bash
 node pruefe-ipad.mjs
 ```
 
-Stellt ein iPad nach, bedient die Seite mit dem Finger und prüft beides: dass
-niemand ohne Zahl hereinkommt und dass kein Feld und kein Knopf zu klein ist.
+Stellt ein iPad nach, bedient die Seite mit dem Finger und prüft: dass niemand
+ohne Zahl hereinkommt, dass kein Feld und kein Knopf zu klein ist, und dass die
+Seite ohne Mac wirklich allein rechnet — nachgesehen wird, dass dabei keine
+einzige Anfrage an `/api` geht.
 
 ## Messen
 
@@ -530,7 +556,7 @@ zusammen; was auf diesem Rechner nicht geht, wird übersprungen und gesagt.
   ✓ Rechnen        176 von 176 in Ordnung
   ✓ Modell         12 von 12 in Ordnung
   ✓ Oberfläche     22 von 22 in Ordnung
-  ✓ iPad           16 von 16 in Ordnung
+  ✓ iPad           23 von 23 in Ordnung
   ✓ Tippen         16 von 16 in Ordnung
   ✓ Aktualisieren  10 von 10 in Ordnung
 ```

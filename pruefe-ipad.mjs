@@ -152,6 +152,35 @@ try {
   ok('und dass ein iPad selbst nicht tippen kann', /iPadOS/.test(hinweis))
   await fern.close()
 
+  console.log('\n  OHNE MAC — die Seite, die allein rechnet')
+  // Ist der Mac gar nicht dabei, gibt es keinen Server. Messen, Auftrennen und
+  // Gliedern sind aber reine Rechnung und laufen genauso im Browser des iPads.
+  // Geprüft wird deshalb ausdrücklich: keine einzige Anfrage an /api.
+  const allein = await gerat.newPage()
+  const anfragen = []
+  allein.on('request', (r) => anfragen.push(r.url()))
+  await allein.goto(`http://localhost:${PORT}/unterwegs`)
+  await warte(900)
+
+  ok('die Seite zeigt beim Öffnen schon einen Befund', /maschinell|Ordnung|Unauffällig/.test((await allein.locator('#befund').textContent()) || ''))
+  ok('sie erkennt den verklebten Beispieltext', await allein.locator('#aufraeumen').isVisible())
+
+  await allein.tap('#aufraeumen')
+  await warte(500)
+  const text = await allein.inputValue('#text')
+  ok('Auftrennen geht ohne Server', text.split('\n').length > 10, `${text.split('\n').length} Zeilen`)
+  ok('und gliedert wie auf dem Mac', text.includes('* Student Name: Jaidi Grotemeyer'))
+  ok('die Formelreste sind auch weg', text.includes('atrium → tricuspid') && !text.includes('$'))
+
+  ok(
+    'dabei wurde der Server nie gefragt',
+    !anfragen.some((u) => u.includes('/api/')),
+    anfragen.filter((u) => u.includes('/api/')).join(', ') || 'keine /api-Anfrage',
+  )
+  const streifen = await allein.locator('#befund .streifen i').count()
+  ok('die Satzlängen stehen als Streifen da', streifen > 3, `${streifen} Balken`)
+  await allein.close()
+
   ok('keine Fehler auf der Seite', fehler.length === 0, fehler.join(' · '))
 } catch (err) {
   ok('die Probe läuft durch', false, err.message.split('\n')[0])

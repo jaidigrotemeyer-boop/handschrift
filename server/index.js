@@ -156,6 +156,24 @@ const server = http.createServer(async (req, res) => {
       return res.end(inhalt)
     }
 
+    // Die Seite ohne Server: dieselbe Rechnung, aber im Browser. Gedacht fürs
+    // iPad, wenn der Mac gar nicht dabei ist — dort läuft kein Node, und
+    // getippt werden kann drüben ohnehin nicht.
+    if (req.method === 'GET' && (weg === '/unterwegs' || weg === '/unterwegs.html')) {
+      const inhalt = fs.readFileSync(path.join(WURZEL, 'web', 'unterwegs.html'))
+      res.writeHead(200, { 'content-type': TYPEN['.html'], 'content-length': inhalt.length })
+      return res.end(inhalt)
+    }
+
+    // Die Rechenteile als Module — unverändert dieselben Dateien, die der
+    // Server selbst benutzt. Zwei Fassungen derselben Messung wären der
+    // sichere Weg, dass sie auseinanderlaufen.
+    if (req.method === 'GET' && /^\/(messen|entwirren|bloecke|tippen)\.js$/.test(weg)) {
+      const inhalt = fs.readFileSync(path.join(WURZEL, 'server', weg.slice(1)))
+      res.writeHead(200, { 'content-type': TYPEN['.js'], 'content-length': inhalt.length })
+      return res.end(inhalt)
+    }
+
     if (req.method === 'GET' && weg === '/api/stand') {
       const gehirne = await anbieter()
       return json(res, 200, {
