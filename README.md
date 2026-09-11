@@ -267,6 +267,25 @@ Sonderzeichen wäre schlimmer als ein übriggebliebenes Dollarzeichen. Und
 Der Knopf erscheint nur, wenn es wirklich danach aussieht — und er drückt sich
 nicht von selbst. Es ist dein Text.
 
+### Ohne alles: das Dokument schreibt sich selbst
+
+Kein Mac, kein Gerät, kein Geld — und trotzdem soll der Text nach und nach im
+Dokument erscheinen? Dann bleibt ein Weg, und er führt nicht über die
+Tastatur, sondern über Google selbst.
+
+**Google Apps Script** gehört zu jedem Google-Konto, läuft auf Googles
+Rechnern und wird im Browser bedient, auch auf einem iPad. In
+[`extras/apps-script/`](extras/apps-script/) liegt ein Skript, das ein
+Dokument Zeichen für Zeichen vollschreibt: jede Minute das nächste Stück,
+alle zwei Sekunden gespeichert, damit der Text im offenen Dokument wirklich
+wächst und nicht minutenweise aufpoppt. Pausen nach dem Punkt, kürzere nach
+dem Komma, gelegentliches Stocken — derselbe Rhythmus wie auf dem Mac.
+
+Die Anleitung steht daneben in [`LIESMICH.md`](extras/apps-script/LIESMICH.md).
+
+Auch dort ist bei vier Stunden Schluss. Dieselbe Grenze, derselbe Grund:
+siehe unten.
+
 ## Lektorieren
 
 **Umschreiben** arbeitet **Absatz für Absatz**, nicht am Stück. Das hat einen
